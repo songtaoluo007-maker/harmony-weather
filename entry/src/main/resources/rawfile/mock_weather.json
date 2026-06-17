@@ -1,0 +1,63 @@
+{
+  "city": "深圳",
+  "current": {
+    "temp": 26,
+    "feelsLike": 24,
+    "text": "晴",
+    "high": 28,
+    "low": 19,
+    "humidity": 65,
+    "windSpeed": 12,
+    "windDir": "东南风",
+    "windScale": "2级",
+    "pressure": 1015,
+    "visibility": 15,
+    "uv": "中等",
+    "sunrise": "06:50",
+    "sunset": "18:20"
+  },
+  "hourly": [
+    { "time": "10时", "temp": 26, "text": "晴" },
+    { "time": "11时", "temp": 27, "text": "晴" },
+    { "time": "12时", "temp": 28, "text": "晴" },
+    { "time": "13时", "temp": 28, "text": "晴" },
+    { "time": "14时", "temp": 27, "text": "多云" },
+    { "time": "15时", "temp": 26, "text": "多云" },
+    { "time": "16时", "temp": 25, "text": "多云" },
+    { "time": "17时", "temp": 24, "text": "晴" },
+    { "time": "18时", "temp": 23, "text": "晴" },
+    { "time": "19时", "temp": 22, "text": "晴" },
+    { "time": "20时", "temp": 21, "text": "晴" },
+    { "time": "21时", "temp": 21, "text": "晴" },
+    { "time": "22时", "temp": 20, "text": "晴" },
+    { "time": "23时", "temp": 20, "text": "晴" }
+  ],
+  "daily": [
+    { "date": "2026-06-12", "week": "周四", "textDay": "晴", "high": 28, "low": 19, "windDir": "东南风", "windScale": "2级", "humidity": 65 },
+    { "date": "2026-06-13", "week": "周五", "textDay": "多云", "high": 27, "low": 20, "windDir": "南风", "windScale": "2级", "humidity": 70 },
+    { "date": "2026-06-14", "week": "周六", "textDay": "多云", "high": 26, "low": 20, "windDir": "南风", "windScale": "3级", "humidity": 75 },
+    { "date": "2026-06-15", "week": "周日", "textDay": "阵雨", "high": 25, "low": 19, "windDir": "西南风", "windScale": "3级", "humidity": 80 },
+    { "date": "2026-06-16", "week": "周一", "textDay": "多云", "high": 27, "low": 20, "windDir": "南风", "windScale": "2级", "humidity": 68 },
+    { "date": "2026-06-17", "week": "周二", "textDay": "晴", "high": 29, "low": 21, "windDir": "东南风", "windScale": "2级", "humidity": 60 },
+    { "date": "2026-06-18", "week": "周三", "textDay": "晴", "high": 30, "low": 22, "windDir": "东风", "windScale": "2级", "humidity": 55 }
+  ],
+  "air": {
+    "aqi": 50,
+    "level": "优",
+    "pm25": 30,
+    "pm10": 60,
+    "no2": 45,
+    "so2": 5,
+    "co": 0.8,
+    "o3": 8,
+    "advice": "空气质量令人满意，基本无空气污染，各类人群可正常活动。"
+  },
+  "lifeIndex": [
+    { "name": "穿衣", "icon": "👔", "brief": "舒适", "detail": "建议穿薄外套或长袖" },
+    { "name": "运动", "icon": "🏃", "brief": "适宜", "detail": "天气较好，适宜户外运动" },
+    { "name": "紫外线", "icon": "☀️", "brief": "中等", "detail": "建议涂擦SPF15左右的防晒霜" },
+    { "name": "洗车", "icon": "🚗", "brief": "适宜", "detail": "天气较好，适合擦洗汽车" },
+    { "name": "旅游", "icon": "✈️", "brief": "适宜", "detail": "天气较好，温度适宜，外出旅游的好天气" },
+    { "name": "感冒", "icon": "🤧", "brief": "少发", "detail": "各项气象条件适宜，无感冒风险" }
+  ]
+}

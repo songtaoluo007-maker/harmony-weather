@@ -1,0 +1,10 @@
+{
+    "app":  {
+                "vendor":  "example",
+                "label":  "",
+                "versionName":  "1.0.0",
+                "icon":  "",
+                "versionCode":  1000000,
+                "bundleName":  "cn.edu.szpu.myWeather"
+            }
+}

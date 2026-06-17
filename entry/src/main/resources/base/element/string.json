@@ -1,0 +1,20 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "鸿蒙天气"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "鸿蒙天气"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "鸿蒙天气"
+    },
+    {
+      "name": "permission_internet_reason",
+      "value": "用于获取实时天气数据"
+    }
+  ]
+}
