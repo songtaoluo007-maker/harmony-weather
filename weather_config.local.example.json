@@ -1,0 +1,14 @@
+{
+  "provider": "qweather",
+  "apiKey": "YOUR_QWEATHER_API_KEY",
+  "baseUrl": "https://devapi.qweather.com",
+  "geoUrl": "https://geoapi.qweather.com",
+  "lang": "zh",
+  "unit": "m",
+  "defaultLocation": "101280601",
+  "defaultCity": "深圳",
+  "cacheMinutes": 30,
+  "cities": [
+    { "name": "深圳", "id": "101280601", "province": "广东" }
+  ]
+}
