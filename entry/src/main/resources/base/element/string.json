@@ -15,6 +15,10 @@
     {
       "name": "permission_internet_reason",
       "value": "用于获取实时天气数据"
+    },
+    {
+      "name": "permission_location_reason",
+      "value": "用于定位当前城市并展示当地天气"
     }
   ]
 }

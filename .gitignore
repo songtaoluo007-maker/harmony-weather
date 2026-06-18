@@ -4,8 +4,10 @@
 /.idea
 **/build
 /.hvigor
+/.appanalyzer
 .cxx
 /.clangd
 /.clang-format
 /.clang-tidy
 **/.test
+**/resources/rawfile/weather_config.local.json
