@@ -30,7 +30,7 @@ struct CitySelector {
     const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
     await this.service.selectCity(context, city.id)
     this.selectedId = city.id
-    this.getUIContext().getPromptAction().showToast({ message: `已切换到${city.name}`, duration: 1200 })
+    this.showToast(`已切换到${city.name}`)
     setTimeout(() => {
       this.getUIContext().getRouter().back()
     }, 220)
@@ -38,7 +38,7 @@ struct CitySelector {
 
   private removeCity(city: CityInfo): void {
     if (city.id === this.selectedId) {
-      this.getUIContext().getPromptAction().showToast({ message: '当前城市不能删除', duration: 1200 })
+      this.showToast('当前城市不能删除')
       return
     }
     this.cities = this.cities.filter((item: CityInfo) => item.id !== city.id)
@@ -56,16 +56,24 @@ struct CitySelector {
       const result = await abilityAccessCtrl.createAtManager().requestPermissionsFromUser(context, permissions)
       const granted: boolean = result.authResults.some((value: number) => value === 0)
       if (!granted) {
-        this.getUIContext().getPromptAction().showToast({ message: '未获得定位权限，可手动选择城市', duration: 1800 })
+        this.showToast('未获得定位权限，可手动选择城市', 1800)
         return
       }
       const location: geoLocationManager.Location = await geoLocationManager.getCurrentLocation()
       const nearest: CityInfo = this.service.findNearestCity(location.latitude, location.longitude)
       await this.selectCity(nearest)
     } catch (error) {
-      this.getUIContext().getPromptAction().showToast({ message: '定位失败，请检查系统定位开关', duration: 1800 })
+      this.showToast('定位失败，请检查系统定位开关', 1800)
     } finally {
       this.locating = false
+    }
+  }
+
+  private showToast(message: string, duration: number = 1200): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message, duration: duration })
+    } catch (error) {
+      console.warn('显示城市提示失败: ' + JSON.stringify(error))
     }
   }
 

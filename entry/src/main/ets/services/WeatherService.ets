@@ -143,11 +143,15 @@ export class WeatherService {
 
   async saveSettings(context: common.UIAbilityContext, settings: AppSettings): Promise<void> {
     this.settings = settings
-    const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_preferences' })
-    await store.put('temperature_unit', settings.unit)
-    await store.put('motion_enabled', settings.motionEnabled)
-    await store.put('refresh_minutes', settings.refreshMinutes)
-    await store.flush()
+    try {
+      const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_preferences' })
+      await store.put('temperature_unit', settings.unit)
+      await store.put('motion_enabled', settings.motionEnabled)
+      await store.put('refresh_minutes', settings.refreshMinutes)
+      await store.flush()
+    } catch (error) {
+      console.warn('保存天气设置失败: ' + JSON.stringify(error))
+    }
   }
 
   getCurrentCity(): CityInfo {
@@ -157,9 +161,13 @@ export class WeatherService {
 
   async selectCity(context: common.UIAbilityContext, cityId: string): Promise<void> {
     this.currentCityId = cityId
-    const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_preferences' })
-    await store.put('selected_city_id', cityId)
-    await store.flush()
+    try {
+      const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_preferences' })
+      await store.put('selected_city_id', cityId)
+      await store.flush()
+    } catch (error) {
+      console.warn('保存当前城市失败: ' + JSON.stringify(error))
+    }
   }
 
   getCityList(): CityInfo[] {
@@ -403,7 +411,12 @@ export class WeatherService {
   }
 
   private async loadMockData(context: common.UIAbilityContext, city: CityInfo): Promise<WeatherData> {
-    const content: Uint8Array = await context.resourceManager.getRawFileContent('mock_weather.json')
+    let content: Uint8Array
+    try {
+      content = await context.resourceManager.getRawFileContent('mock_weather.json')
+    } catch (error) {
+      throw new Error('演示天气数据不可用: ' + JSON.stringify(error))
+    }
     const json: Record<string, Object> = JSON.parse(this.decodeUtf8(content)) as Record<string, Object>
     const data: WeatherData = WeatherData.fromMock(json)
     data.city = city.name

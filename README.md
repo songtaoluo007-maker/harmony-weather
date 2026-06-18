@@ -22,6 +22,8 @@
 
 `entry/build/default/outputs/default/entry-default-unsigned.hap`
 
+命令行构建建议使用 `powershell -ExecutionPolicy Bypass -File scripts/build-hap.ps1`。脚本会从本机 `local.properties` 读取 SDK 与 Node 路径，并为当前进程设置 `DEVECO_SDK_HOME`；如果 Hvigor 守护进程继承了旧环境，可追加 `-RestartDaemon`。
+
 正式签名信息属于本机或 CI 环境配置，不应提交到仓库。
 
 ## 视觉与资源
