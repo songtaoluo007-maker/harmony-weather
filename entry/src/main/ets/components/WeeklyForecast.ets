@@ -1,116 +1,116 @@
-// ─── 7日预报：温度条渐变 + 毛玻璃卡片 ────────────────
 import { DailyWeather } from '../models/WeatherModels'
 import { ThemeColors } from '../theme/WeatherTheme'
-import { WeatherData } from '../models/WeatherModels'
+import { WeatherIcon } from './WeatherIcon'
 
 @Component
 export struct WeeklyForecast {
   @Prop daily: DailyWeather[] = []
   @Prop themeColors: ThemeColors = new ThemeColors()
+  @Prop unit: string = 'c'
+
+  private temperature(value: number): number {
+    return this.unit === 'f' ? Math.round(value * 9 / 5 + 32) : value
+  }
 
   private getGlobalMin(): number {
-    let min = 100
-    for (const d of this.daily) {
-      if (d.low < min) min = d.low
-    }
-    return min
+    let value: number = 100
+    this.daily.forEach((item: DailyWeather) => {
+      if (item.low < value) value = item.low
+    })
+    return value === 100 ? 0 : value
   }
 
   private getGlobalMax(): number {
-    let max = -100
-    for (const d of this.daily) {
-      if (d.high > max) max = d.high
-    }
-    return max
+    let value: number = -100
+    this.daily.forEach((item: DailyWeather) => {
+      if (item.high > value) value = item.high
+    })
+    return value === -100 ? 1 : value
+  }
+
+  private getBarWidth(item: DailyWeather): number {
+    const range: number = Math.max(1, this.getGlobalMax() - this.getGlobalMin())
+    return Math.max(18, (item.high - item.low) / range * 48)
+  }
+
+  private getDateLabel(dateValue: string): string {
+    const parts: string[] = dateValue.split('-')
+    return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : dateValue
   }
 
   build() {
     Column() {
-      Text('7日预报')
-        .fontSize(14)
-        .fontColor(this.themeColors.textSecondary)
-        .alignSelf(ItemAlign.Start)
-        .margin({ left: 4, bottom: 10 })
+      Row() {
+        Text('15日天气')
+          .fontSize(18)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.themeColors.textColor)
+        Blank()
+        Text('查看全部')
+          .fontSize(12)
+          .fontColor(this.themeColors.textSecondary)
+        Image($r('app.media.chevron_right'))
+          .width(16)
+          .height(16)
+          .fillColor(this.themeColors.textSecondary)
+          .margin({ left: 2 })
+      }
+      .width('100%')
+      .margin({ bottom: 10 })
 
-      Column({ space: 0 }) {
-        ForEach(this.daily, (item: DailyWeather, index: number) => {
-          Row() {
-            // 星期
-            Text(index === 0 ? '今天' : item.week)
-              .fontSize(14)
-              .fontColor(this.themeColors.textColor)
-              .width(48)
+      Scroll() {
+        Row() {
+          ForEach(this.daily.slice(0, 7), (item: DailyWeather, index: number) => {
+            Column() {
+              Text(index === 0 ? '今天' : item.week)
+                .fontSize(13)
+                .fontWeight(index === 0 ? FontWeight.Medium : FontWeight.Normal)
+                .fontColor(this.themeColors.textColor)
+              Text(this.getDateLabel(item.date))
+                .fontSize(11)
+                .fontColor(this.themeColors.textTertiary)
+                .margin({ top: 3 })
 
-            // 天气图标
-            Text(WeatherData.textToIcon(item.textDay))
-              .fontSize(18)
-              .width(30)
+              WeatherIcon({
+                text: item.textDay,
+                iconSize: 24,
+                fallbackColor: this.themeColors.textColor
+              })
+                .margin({ top: 7 })
 
-            // 低温数字
-            Text(`${item.low}°`)
-              .fontSize(14)
-              .fontColor(this.themeColors.textSecondary)
-              .width(36)
-              .textAlign(TextAlign.End)
+              Text(`${this.temperature(item.high)}°`)
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.themeColors.textColor)
+                .margin({ top: 6 })
 
-            // 温度条
-            Stack() {
-              // 背景条
-              Row()
-                .width('100%')
-                .height(4)
-                .borderRadius(2)
-                .backgroundColor('rgba(255,255,255,0.1)')
-
-              // 温度条
               Row()
                 .width(this.getBarWidth(item))
-                .height(4)
+                .height(3)
                 .borderRadius(2)
                 .linearGradient({
                   direction: GradientDirection.Right,
-                  colors: [['#5AC8FA', 0], ['#FF9500', 1]]
+                  colors: [[this.themeColors.accent, 0], [this.themeColors.warmAccent, 1]]
                 })
-                .margin({ left: this.getBarOffset(item) })
-            }
-            .layoutWeight(1)
-            .margin({ left: 10, right: 10 })
+                .margin({ top: 6, bottom: 6 })
 
-            // 高温数字
-            Text(`${item.high}°`)
-              .fontSize(14)
-              .fontColor(this.themeColors.textColor)
-              .width(36)
-          }
-          .width('100%')
-          .height(44)
-          .alignItems(VerticalAlign.Center)
-          .border({ width: { bottom: index < this.daily.length - 1 ? 0.5 : 0 }, color: 'rgba(255,255,255,0.06)' })
-        }, (item: DailyWeather, index: number) => `${index}_${item.date}`)
+              Text(`${this.temperature(item.low)}°`)
+                .fontSize(15)
+                .fontColor(this.themeColors.textSecondary)
+            }
+            .width(54)
+            .padding({ top: 2, bottom: 2 })
+            .accessibilityText(`${index === 0 ? '今天' : item.week}${item.textDay}最高${item.high}度最低${item.low}度`)
+          }, (item: DailyWeather, index: number) => `${index}_${item.date}`)
+        }
       }
+      .width('100%')
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
-    .padding({ left: 20, right: 20, top: 16, bottom: 16 })
-    .backgroundBlurStyle(BlurStyle.BACKGROUND_ULTRA_THICK)
-    .backgroundColor(this.themeColors.cardBg)
+    .padding({ left: 20, right: 20, top: 14, bottom: 14 })
+    .backgroundColor(this.themeColors.sectionTint)
     .borderRadius(24)
-    .border({ width: 1, color: this.themeColors.cardBorder })
-    .margin({ left: 16, right: 16 })
-  }
-
-  private getBarOffset(item: DailyWeather): number {
-    const min = this.getGlobalMin()
-    const max = this.getGlobalMax()
-    const range = max - min
-    if (range === 0) return 0
-    return (item.low - min) / range * 100
-  }
-
-  private getBarWidth(item: DailyWeather): string {
-    const min = this.getGlobalMin()
-    const max = this.getGlobalMax()
-    const range = max - min
-    if (range === 0) return '50%'
-    return `${(item.high - item.low) / range * 100}%`
   }
 }

@@ -1,75 +1,56 @@
-// ─── Hero 区：城市名 + 温度 + 天气状态 ──────────────
 import { CurrentWeather } from '../models/WeatherModels'
 import { ThemeColors } from '../theme/WeatherTheme'
 
 @Component
 export struct HeroSection {
-  @Prop city: string = '深圳'
   @Prop current: CurrentWeather = new CurrentWeather()
+  @Prop displayTemp: number = 26
+  @Prop displayFeels: number = 27
+  @Prop displayHigh: number = 29
+  @Prop displayLow: number = 23
+  @Prop unitLabel: string = '°'
   @Prop themeColors: ThemeColors = new ThemeColors()
-  @State showContent: boolean = false
+  @State visible: boolean = false
 
   aboutToAppear(): void {
     setTimeout(() => {
-      this.showContent = true
-    }, 200)
+      this.visible = true
+    }, 120)
   }
 
   build() {
     Column() {
-      // 城市名
-      Text(this.city)
-        .fontSize(18)
-        .fontColor(this.themeColors.textSecondary)
-        .opacity(this.showContent ? 1 : 0)
-        .translate({ y: this.showContent ? 0 : 20 })
-        .animation({ duration: 600, curve: Curve.EaseOut })
-
-      // 温度数字
-      Text(`${this.current.temp}°`)
+      Text(`${this.displayTemp}${this.unitLabel}`)
         .fontSize(96)
-        .fontWeight(FontWeight.Thin)
+        .fontWeight(FontWeight.Lighter)
         .fontColor(this.themeColors.textColor)
-        .opacity(this.showContent ? 1 : 0)
-        .scale({ x: this.showContent ? 1 : 0.8, y: this.showContent ? 1 : 0.8 })
-        .animation({ duration: 800, curve: Curve.EaseOut, delay: 150 })
+        .letterSpacing(-5)
+        .opacity(this.visible ? 1 : 0)
+        .translate({ y: this.visible ? 0 : 18 })
+        .animation({ duration: 620, curve: Curve.EaseOut })
+        .accessibilityText(`当前温度${this.displayTemp}度`)
 
-      // 天气描述
       Text(this.current.text)
-        .fontSize(22)
+        .fontSize(23)
+        .fontWeight(FontWeight.Medium)
         .fontColor(this.themeColors.textColor)
-        .opacity(this.showContent ? 1 : 0)
-        .translate({ y: this.showContent ? 0 : 15 })
-        .animation({ duration: 600, curve: Curve.EaseOut, delay: 300 })
+        .margin({ top: -5 })
 
-      // 体感 + 高低温
-      Row() {
-        Text(`体感 ${this.current.feelsLike}°`)
-          .fontSize(14)
+      Row({ space: 16 }) {
+        Text(`体感 ${this.displayFeels}°`)
+          .fontSize(15)
           .fontColor(this.themeColors.textSecondary)
-
-        Text(' · ')
-          .fontSize(14)
+        Text(`最高 ${this.displayHigh}°`)
+          .fontSize(15)
           .fontColor(this.themeColors.textSecondary)
-
-        Text(`最高 ${this.current.high}°`)
-          .fontSize(14)
-          .fontColor(this.themeColors.textSecondary)
-
-        Text('  ')
-          .fontSize(14)
-
-        Text(`最低 ${this.current.low}°`)
-          .fontSize(14)
+        Text(`最低 ${this.displayLow}°`)
+          .fontSize(15)
           .fontColor(this.themeColors.textSecondary)
       }
-      .margin({ top: 8 })
-      .opacity(this.showContent ? 1 : 0)
-      .translate({ y: this.showContent ? 0 : 10 })
-      .animation({ duration: 600, curve: Curve.EaseOut, delay: 450 })
+        .margin({ top: 7 })
     }
     .width('100%')
-    .padding({ top: 80, bottom: 40 })
-    .alignItems(HorizontalAlign.Center)
+    .padding({ left: 24, right: 24, top: 12, bottom: 20 })
+    .alignItems(HorizontalAlign.Start)
   }
 }

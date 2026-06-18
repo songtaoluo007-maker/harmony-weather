@@ -1,69 +1,81 @@
-// ─── 逐小时胶囊：横向滚动天气预报 ────────────────────
 import { HourlyWeather } from '../models/WeatherModels'
 import { ThemeColors } from '../theme/WeatherTheme'
+import { WeatherIcon } from './WeatherIcon'
 
 @Component
 export struct HourlyCapsules {
   @Prop hourly: HourlyWeather[] = []
   @Prop themeColors: ThemeColors = new ThemeColors()
+  @Prop unit: string = 'c'
   @State selectedIndex: number = 0
+
+  private temperature(value: number): number {
+    return this.unit === 'f' ? Math.round(value * 9 / 5 + 32) : value
+  }
 
   build() {
     Column() {
-      // 标题
-      Text('逐时预报')
-        .fontSize(14)
-        .fontColor(this.themeColors.textSecondary)
-        .alignSelf(ItemAlign.Start)
-        .margin({ left: 4, bottom: 10 })
+      Row() {
+        Text('逐小时预报')
+          .fontSize(18)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.themeColors.textColor)
+        Blank()
+        Text(this.hourly.length > 0 && this.hourly[0].pop > 0 ? `降水 ${this.hourly[0].pop}%` : '降水概率较低')
+          .fontSize(12)
+          .fontColor(this.themeColors.textSecondary)
+      }
+      .width('100%')
+      .margin({ bottom: 10 })
 
-      // 横向滚动胶囊
       Scroll() {
-        Row({ space: 10 }) {
+        Row() {
           ForEach(this.hourly, (item: HourlyWeather, index: number) => {
             Column() {
               Text(index === 0 ? '现在' : item.time)
                 .fontSize(12)
-                .fontColor(index === 0 ? this.themeColors.textColor : this.themeColors.textSecondary)
+                .fontColor(this.themeColors.textSecondary)
+                .maxLines(1)
 
-              Text(item.icon)
-                .fontSize(22)
+              WeatherIcon({
+                text: item.text,
+                iconSize: 24,
+                fallbackColor: this.themeColors.textColor
+              })
                 .margin({ top: 8 })
 
-              Text(`${item.temp}°`)
+              Text(`${this.temperature(item.temp)}°`)
                 .fontSize(16)
                 .fontWeight(FontWeight.Medium)
                 .fontColor(this.themeColors.textColor)
-                .margin({ top: 6 })
+                .margin({ top: 7 })
+
+              if (item.pop > 0) {
+                Text(`${item.pop}%`)
+                  .fontSize(10)
+                  .fontColor(this.themeColors.accent)
+                  .margin({ top: 4 })
+              }
             }
-            .width(64)
-            .padding({ top: 14, bottom: 14 })
-            .borderRadius(20)
-            .backgroundColor(
-              index === this.selectedIndex ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.08)'
-            )
-            .border({
-              width: index === this.selectedIndex ? 1 : 0,
-              color: 'rgba(255,255,255,0.4)'
-            })
+            .width(58)
+            .height(84)
+            .justifyContent(FlexAlign.Center)
+            .borderRadius(18)
+            .backgroundColor(index === this.selectedIndex ? this.themeColors.strongTint : 'transparent')
             .onClick(() => {
               this.selectedIndex = index
             })
-            .scale({ x: index === this.selectedIndex ? 1 : 0.95, y: index === this.selectedIndex ? 1 : 0.95 })
-            .animation({ duration: 200, curve: Curve.EaseOut })
-          }, (item: HourlyWeather, index: number) => `${index}_${item.time}_${item.temp}`)
+            .accessibilityText(`${item.time}${item.text}${item.temp}度`)
+          }, (item: HourlyWeather, index: number) => `${index}_${item.time}`)
         }
       }
+      .width('100%')
       .scrollable(ScrollDirection.Horizontal)
       .scrollBar(BarState.Off)
-      .width('100%')
     }
     .width('100%')
-    .padding({ left: 20, right: 20, top: 16, bottom: 16 })
-    .backgroundBlurStyle(BlurStyle.BACKGROUND_ULTRA_THICK)
-    .backgroundColor(this.themeColors.cardBg)
+    .padding({ left: 20, right: 20, top: 14, bottom: 14 })
+    .backgroundColor(this.themeColors.sectionTint)
     .borderRadius(24)
-    .border({ width: 1, color: this.themeColors.cardBorder })
-    .margin({ left: 16, right: 16 })
   }
 }

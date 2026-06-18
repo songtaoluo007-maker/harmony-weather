@@ -1,6 +1,6 @@
-// ─── 生活指数网格 ─────────────────────────────────────
 import { LifeIndex } from '../models/WeatherModels'
 import { ThemeColors } from '../theme/WeatherTheme'
+import { lifeIconResource } from './WeatherIcon'
 
 @Component
 export struct LifeIndexGrid {
@@ -10,40 +10,49 @@ export struct LifeIndexGrid {
   build() {
     Column() {
       Text('生活指数')
-        .fontSize(14)
-        .fontColor(this.themeColors.textSecondary)
+        .fontSize(20)
+        .fontWeight(FontWeight.Medium)
+        .fontColor(this.themeColors.textColor)
         .alignSelf(ItemAlign.Start)
-        .margin({ left: 4, bottom: 10 })
+        .margin({ bottom: 16 })
 
-      Flex({ wrap: FlexWrap.Wrap, space: { main: new LengthMetrics(10), cross: new LengthMetrics(10) } }) {
-        ForEach(this.lifeIndex, (item: LifeIndex, index: number) => {
-          Column() {
-            Text(item.icon)
-              .fontSize(24)
+      Scroll() {
+        Row() {
+          ForEach(this.lifeIndex, (item: LifeIndex, index: number) => {
+            Column() {
+              Image(lifeIconResource(item.iconKey))
+                .width(34)
+                .height(34)
+                .fillColor(index === 1 ? this.themeColors.warmAccent : this.themeColors.accent)
 
-            Text(item.name)
-              .fontSize(12)
-              .fontColor(this.themeColors.textSecondary)
-              .margin({ top: 6 })
+              Text(item.name)
+                .fontSize(12)
+                .fontColor(this.themeColors.textSecondary)
+                .margin({ top: 10 })
 
-            Text(item.brief)
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(this.themeColors.textColor)
-              .margin({ top: 4 })
-          }
-          .width('31%')
-          .padding({ top: 14, bottom: 14 })
-          .backgroundBlurStyle(BlurStyle.BACKGROUND_ULTRA_THICK)
-          .backgroundColor(this.themeColors.cardBg)
-          .borderRadius(16)
-          .border({ width: 1, color: this.themeColors.cardBorder })
-          .alignItems(HorizontalAlign.Center)
-        }, (item: LifeIndex, index: number) => `${index}_${item.name}`)
+              Text(item.brief)
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(this.themeColors.textColor)
+                .margin({ top: 4 })
+                .maxLines(1)
+            }
+            .width(92)
+            .height(116)
+            .justifyContent(FlexAlign.Center)
+            .border({ width: { right: index < this.lifeIndex.length - 1 ? 1 : 0 }, color: this.themeColors.divider })
+            .onClick(() => {
+              this.getUIContext().getPromptAction().showToast({ message: `${item.name}：${item.detail}`, duration: 2200 })
+            })
+            .accessibilityText(`${item.name}${item.brief}，${item.detail}`)
+          }, (item: LifeIndex, index: number) => `${index}_${item.name}`)
+        }
       }
       .width('100%')
+      .scrollable(ScrollDirection.Horizontal)
+      .scrollBar(BarState.Off)
     }
     .width('100%')
-    .padding({ left: 16, right: 16 })
+    .padding({ top: 20, bottom: 18 })
   }
 }
