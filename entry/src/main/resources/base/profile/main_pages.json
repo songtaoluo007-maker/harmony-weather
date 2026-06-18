@@ -1,6 +1,8 @@
 {
   "src": [
     "pages/Index",
-    "pages/CitySelector"
+    "pages/CitySelector",
+    "pages/Settings",
+    "pages/WeatherDetails"
   ]
 }
