@@ -9,6 +9,10 @@
 资讯连接中国天气网官方移动版新闻与气象科普原站，不打包、抓取或虚构新闻内容。
 本轮交付与上线前边界见 [正式产品界面验收](docs/product-shell.md)。
 
+首页下半部分已升级为统一的柔光材质：具象生活插画、六档 AQI 刻度、风向罗盘、
+城市当地日照轨迹与紧凑环境指标。保留真实数据与全部原有入口；见
+[原生前后对比](design/atmosphere-comparison.jpg) 和 [本轮界面验收](docs/atmosphere-polish.md)。
+
 ## 本地天气配置
 
 项目现在默认连接 **Open-Meteo 在线天气**，无需注册、登录或 API 密钥。
@@ -48,7 +52,8 @@
 
 ## 视觉与资源
 
-- 最新正式界面：[design/product-shell.jpg](design/product-shell.jpg)
+- 最新首页卡片：[design/atmosphere-comparison.jpg](design/atmosphere-comparison.jpg)
+- 正式产品入口：[design/product-shell.jpg](design/product-shell.jpg)（首页卡片为此次改造前）
 - 当前青岛夜间云层实录：[design/product-cloud-motion.gif](design/product-cloud-motion.gif)（真实天气，无预览覆盖）
 - 以下预览/演示截图为之前阶段的历史证据；正式界面已不提供背景预览入口。
 - 选定视觉稿：[design/originos-weather-target.png](design/originos-weather-target.png)
@@ -70,6 +75,6 @@
 
 ## 状态测试
 
-使用 DevEco 自带 Node 执行 `node --test scripts/test-weather-state.cjs scripts/test-news.cjs scripts/test-page-lifecycle.cjs`。脚本通过
+使用 DevEco 自带 Node 执行 `node --test scripts/test-weather-state.cjs scripts/test-news.cjs scripts/test-page-lifecycle.cjs scripts/test-instruments.cjs`。脚本通过
 DevEco TypeScript 加载真实模型与 Service，只替换平台 I/O；这不等同于真实 API
 联调。若使用外部 Node，请将 `DEVECO_STUDIO_HOME` 指向 DevEco 安装目录。

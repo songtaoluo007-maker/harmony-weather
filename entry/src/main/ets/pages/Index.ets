@@ -21,6 +21,7 @@ import { LifeIndexGrid } from '../components/LifeIndexGrid'
 
 import { BottomNavigation } from '../components/BottomNavigation'
 import { WeatherPresentation } from '../models/WeatherPresentation'
+import { WeatherInstruments } from '../models/WeatherInstruments'
 
 @Entry
 @Component
@@ -41,6 +42,7 @@ struct Index {
   private loading: boolean = false
   private scroller: Scroller = new Scroller()
   @State currentHour: number = new Date().getHours()
+  @State sceneTime: number = Date.now()
   @State isNight: boolean = false
   @State nightPhoto: boolean = false
   @State cityImageAspect: number = 1.5
@@ -188,6 +190,7 @@ struct Index {
   }
 
   private updateScene(updateBackground: boolean = true): void {
+    this.sceneTime = Date.now()
     const scene = WeatherData.sceneAt(this.weatherData)
     this.currentHour = scene.hour
     this.isNight = scene.isNight
@@ -275,9 +278,10 @@ struct Index {
               AirQualityCard({ air: this.weatherData.air, current: this.weatherData.current,
                 unit: this.unit, themeColors: this.themeColors })
               LifeIndexGrid({ lifeIndex: this.weatherData.lifeIndex, themeColors: this.themeColors })
-              Text('天气详情').fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
-                .alignSelf(ItemAlign.Start).margin({ top: 24, bottom: 16 })
-              DataGrid({ current: this.weatherData.current, themeColors: this.themeColors, unit: this.unit })
+              Text('天气详情').fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
+                .alignSelf(ItemAlign.Start).margin({ top: 30, bottom: 18 })
+              DataGrid({ current: this.weatherData.current, themeColors: this.themeColors, unit: this.unit,
+                solar: WeatherInstruments.solar(this.weatherData, this.sceneTime) })
               Column({ space: 6 }) {
                 Text(this.updateText()).fontSize(11).fontColor(this.themeColors.textSecondary)
                 Button('关于与数据来源', { type: ButtonType.Normal }).height(44).fontSize(11)
@@ -286,6 +290,8 @@ struct Index {
               }.width('100%').margin({ top: 24, bottom: 16 })
             }
             .width('100%').padding({ left: 24, right: 24 })
+            .linearGradient({ angle: 180, colors: [['rgba(100,145,155,0)', 0],
+              ['rgba(100,145,155,0.035)', .3], ['rgba(80,110,130,0.065)', 1]] })
           }.width('100%')
         }.width('100%')
       }

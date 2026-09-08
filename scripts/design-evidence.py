@@ -77,6 +77,8 @@ if __name__ == '__main__':
         board(['parity-air.jpeg', 'parity-life-wind.jpeg', 'parity-night.jpeg', 'parity-loading.jpeg'], ['六项污染物 · 保留单位', '生活入口与风速 · 已补回', '夜间预报 · 逐小时汇总', '首次加载 · 结构骨架'], 'feature-restoration.jpg')
     elif sys.argv[1] == 'product-board':
         board(['product-home.jpeg', 'product-news.jpeg', 'product-settings.jpeg', 'product-about.jpeg'], ['天气 · 真实数据与城市动效', '资讯 · 官方原文阅读', '设置 · 显示 / 权限 / 缓存', '关于 · 数据与资源来源'], 'product-shell.jpg')
+    elif sys.argv[1] == 'atmosphere-board':
+        board(['atmosphere-before.jpeg', 'atmosphere-life.jpeg', 'atmosphere-details.jpeg'], ['改造前 · 重复指标卡片', '改造后 · 生活气象', '改造后 · 原生天气仪表'], 'atmosphere-comparison.jpg', 400)
     elif sys.argv[1] == 'board':
         board(['redesign-home-final.jpeg', 'redesign-life-final.jpeg', 'redesign-cities-final.jpeg', 'redesign-settings-final.jpeg'], ['首页 · 模拟器实拍', '生活气象 · 模拟器实拍', '城市管理 · 模拟器实拍', '设置 · 模拟器实拍'], 'redesign-overview.jpg')
         board(['originos-weather-target.png', 'redesign-home-final.jpeg'], ['已确认的视觉方向', '原生运行效果 · 当前演示数据'], 'redesign-reference-comparison.jpg', 440)

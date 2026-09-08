@@ -48,6 +48,8 @@ with a webpage.
 
 ## Preview and evidence
 
+- [Latest lower-home native before/after](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/atmosphere-comparison.jpg)
+- [Atmosphere/instrument implementation and bounded QA](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/docs/atmosphere-polish.md)
 - [Current product-shell native screens](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/product-shell.jpg)
 - [Current live Qingdao cloud motion](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/product-cloud-motion.gif)
 - [Product-shell delivery and release boundaries](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/docs/product-shell.md)
@@ -65,9 +67,16 @@ with a webpage.
 
 - Hvigor `assembleHap` with SDK `6.1.1(24)` succeeds; unsigned HAP installs and
   launches on the Pura 90 emulator.
-- Fifty-two real-service/model/page-method tests pass with platform I/O mocked,
+- Fifty-nine real-service/model/page-method tests pass with platform I/O mocked,
   including provider-separated offline restoration, city-local solar boundaries,
   night coverage, old-cache upgrades, pollutants, life entries and snow positions.
+- Latest lower-home polish preserves the hero, six pollutants, seven life entries
+  and all prior detail fields. Shared translucent materials, native wind compass,
+  city-time daylight arc and actual six-band AQI marker replace repetitive tiles.
+  Seven instrument tests cover unknown wind, percentage/AQI boundaries and city-date
+  solar states. Native ~377vp and 320vp/1.3x font checks caught and fixed life-card
+  heights and wind-unit crowding; temporary hooks removed. Air/life/unavailable
+  detail clicks verified; this does not claim full screen-reader/device-matrix QA.
 - New regressions cover cache-clear reads/writes, flush failure/consecutive clears,
   stale page callbacks, official/mobile URL validation, timeout state and blocked-link
   history preservation. Native news/science load, article/back/refresh/browser, settings,
