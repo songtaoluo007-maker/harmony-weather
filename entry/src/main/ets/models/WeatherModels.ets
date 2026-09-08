@@ -269,8 +269,10 @@ export class WeatherData {
     if (type === WeatherType.RAINY) return WeatherVisualState.RAIN
     if (type === WeatherType.SNOWY) return WeatherVisualState.SNOW
     if (type === WeatherType.FOGGY) return WeatherVisualState.HAZE
-    const sunriseHour: number = Number(sunrise.split(':')[0]) || 6
-    const sunsetHour: number = Number(sunset.split(':')[0]) || 19
+    const sunriseParts: string[] = sunrise.split(':')
+    const sunsetParts: string[] = sunset.split(':')
+    const sunriseHour: number = sunriseParts.length === 2 ? Number(sunriseParts[0]) + Number(sunriseParts[1]) / 60 : 6
+    const sunsetHour: number = sunsetParts.length === 2 ? Number(sunsetParts[0]) + Number(sunsetParts[1]) / 60 : 19
     const isNight: boolean = hour < sunriseHour || hour >= sunsetHour
     if (type === WeatherType.SUNNY) {
       return isNight ? WeatherVisualState.CLEAR_NIGHT : WeatherVisualState.CLEAR_DAY

@@ -116,6 +116,7 @@ export class WeatherService {
   private initialized: boolean = false
   private latestData: WeatherData | null = null
   private settings: AppSettings = new AppSettings()
+  private hiddenCityIds: string[] = []
 
   static getInstance(): WeatherService {
     if (!WeatherService.instance) WeatherService.instance = new WeatherService()
@@ -131,6 +132,7 @@ export class WeatherService {
       this.settings.unit = String(await store.get('temperature_unit', 'c'))
       this.settings.motionEnabled = Boolean(await store.get('motion_enabled', true))
       this.settings.refreshMinutes = Number(await store.get('refresh_minutes', 30))
+      this.hiddenCityIds = JSON.parse(String(await store.get('hidden_city_ids', '[]'))) as string[]
     } catch (error) {
       console.warn('读取天气偏好失败: ' + JSON.stringify(error))
     }
@@ -141,16 +143,18 @@ export class WeatherService {
     return this.settings
   }
 
-  async saveSettings(context: common.UIAbilityContext, settings: AppSettings): Promise<void> {
-    this.settings = settings
+  async saveSettings(context: common.UIAbilityContext, settings: AppSettings): Promise<boolean> {
     try {
       const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_preferences' })
       await store.put('temperature_unit', settings.unit)
       await store.put('motion_enabled', settings.motionEnabled)
       await store.put('refresh_minutes', settings.refreshMinutes)
       await store.flush()
+      this.settings = settings
+      return true
     } catch (error) {
       console.warn('保存天气设置失败: ' + JSON.stringify(error))
+      return false
     }
   }
 
@@ -159,14 +163,19 @@ export class WeatherService {
     return found ?? new CityInfo('101280601', '深圳', '广东')
   }
 
-  async selectCity(context: common.UIAbilityContext, cityId: string): Promise<void> {
-    this.currentCityId = cityId
+  async selectCity(context: common.UIAbilityContext, cityId: string): Promise<boolean> {
+    const next: string[] = this.hiddenCityIds.filter((id: string) => id !== cityId)
     try {
       const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_preferences' })
       await store.put('selected_city_id', cityId)
+      await store.put('hidden_city_ids', JSON.stringify(next))
       await store.flush()
+      this.currentCityId = cityId
+      this.hiddenCityIds = next
+      return true
     } catch (error) {
       console.warn('保存当前城市失败: ' + JSON.stringify(error))
+      return false
     }
   }
 
@@ -199,6 +208,29 @@ export class WeatherService {
     })
   }
 
+  getSavedCities(): CityInfo[] {
+    return this.getCityList().filter((city: CityInfo) => !this.hiddenCityIds.includes(city.id))
+  }
+
+  async removeSavedCity(context: common.UIAbilityContext, cityId: string): Promise<boolean> {
+    if (cityId === this.currentCityId) return false
+    const next: string[] = this.hiddenCityIds.concat(cityId)
+    try {
+      const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_preferences' })
+      await store.put('hidden_city_ids', JSON.stringify(next))
+      await store.flush()
+      this.hiddenCityIds = next
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
+  hasLiveConfiguration(): boolean {
+    const key: string = this.config?.apiKey?.trim() ?? ''
+    return key.length > 0 && !key.toUpperCase().includes('YOUR_')
+  }
+
   findNearestCity(latitude: number, longitude: number): CityInfo {
     let nearest: CityInfo = this.getCurrentCity()
     let nearestDistance: number = Number.MAX_VALUE
@@ -229,7 +261,7 @@ export class WeatherService {
       return cached
     }
 
-    const apiReady: boolean = Boolean(this.config?.apiKey && this.config?.apiKey !== 'YOUR_API_KEY_HERE')
+    const apiReady: boolean = this.hasLiveConfiguration()
     if (apiReady) {
       try {
         const live: WeatherData = await this.fetchFromAPI(city)
@@ -240,13 +272,13 @@ export class WeatherService {
       } catch (error) {
         console.error('实时天气请求失败: ' + JSON.stringify(error))
         const persisted: WeatherData | null = await this.readPersistentCache(context, targetId)
-        if (persisted) {
+        if (persisted && persisted.source === 'qweather') {
           persisted.isOffline = true
-          persisted.source = 'cache'
           this.cache.set(targetId, persisted)
           this.latestData = persisted
           return persisted
         }
+        throw new Error('实时天气更新失败，暂无可用的真实天气缓存')
       }
     }
 
@@ -260,7 +292,6 @@ export class WeatherService {
       const persisted: WeatherData | null = await this.readPersistentCache(context, targetId)
       if (persisted) {
         persisted.isOffline = true
-        persisted.source = 'cache'
         this.latestData = persisted
         return persisted
       }
@@ -299,10 +330,12 @@ export class WeatherService {
     const hourlyPromise: Promise<QWeatherHourlyResponse> =
       this.httpGet<QWeatherHourlyResponse>(`${baseUrl}/v7/weather/24h?location=${city.id}&key=${apiKey}&lang=${language}`)
 
-    const nowResp: QWeatherNowResponse = await nowPromise
-    const dailyResp: QWeatherDailyResponse = await dailyPromise
-    const airResp: QWeatherAirResponse = await airPromise
-    const hourlyResp: QWeatherHourlyResponse = await hourlyPromise
+    const requests: Promise<Object>[] = [nowPromise, dailyPromise, airPromise, hourlyPromise]
+    const results: Object[] = await Promise.all(requests)
+    const nowResp: QWeatherNowResponse = results[0] as QWeatherNowResponse
+    const dailyResp: QWeatherDailyResponse = results[1] as QWeatherDailyResponse
+    const airResp: QWeatherAirResponse = results[2] as QWeatherAirResponse
+    const hourlyResp: QWeatherHourlyResponse = results[3] as QWeatherHourlyResponse
     if (nowResp.code !== '200') throw new Error(`QWeather ${nowResp.code}`)
 
     const data: WeatherData = new WeatherData()
@@ -427,10 +460,18 @@ export class WeatherService {
     data.current.feelsLike -= offset
     data.current.high -= offset
     data.current.low -= Math.min(offset, 2)
-    data.hourly.forEach((item: HourlyWeather) => item.temp -= offset)
-    data.daily.forEach((item: DailyWeather) => {
+    data.hourly.forEach((item: HourlyWeather, index: number) => {
+      item.temp -= offset
+      item.time = index === 0 ? '现在' : `${(new Date().getHours() + index) % 24}时`
+    })
+    data.daily.forEach((item: DailyWeather, index: number) => {
       item.high -= offset
       item.low -= Math.min(offset, 2)
+      const date: Date = new Date()
+      date.setDate(date.getDate() + index)
+      item.date = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+      const weeks: string[] = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+      item.week = weeks[date.getDay()]
     })
     data.lastUpdate = Date.now()
     data.source = 'mock'
