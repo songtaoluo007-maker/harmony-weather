@@ -2,7 +2,7 @@ import { AirQuality, CurrentWeather } from '../models/WeatherModels'
 import { PollutantValue, WeatherPresentation } from '../models/WeatherPresentation'
 import { WeatherInstruments } from '../models/WeatherInstruments'
 import { ThemeColors } from '../theme/WeatherTheme'
-import { AtmosphereTokens as A } from '../theme/AtmosphereTokens'
+import { AtmospherePalette, AtmosphereTokens as A } from '../theme/AtmosphereTokens'
 
 @Component
 export struct AirQualityCard {
@@ -10,6 +10,8 @@ export struct AirQualityCard {
   @Prop current: CurrentWeather = new CurrentWeather()
   @Prop unit: string = 'c'
   @Prop themeColors: ThemeColors = new ThemeColors()
+  @Prop palette: AtmospherePalette = new AtmospherePalette()
+  onInspect: () => void = () => {}
   @State meterWidth: number = 0
   private readonly colors: string[] = ['#9CC9AB', '#DBCC93', '#DEA77C', '#D88F89', '#B89BBC', '#A08099']
 
@@ -18,22 +20,15 @@ export struct AirQualityCard {
     return band < 0 ? this.themeColors.textSecondary : this.colors[band]
   }
 
-  private showDetail(): void {
-    this.getUIContext().showAlertDialog({
-      title: this.air.available ? `空气质量 · ${this.air.level}` : '空气质量暂不可用',
-      message: this.air.available ? `${this.air.standard}\n\n${WeatherPresentation.pollutants(this.air).map((item: PollutantValue) => `${item.label}：${item.value} ${item.unit}`).join('\n')}` : '空气质量暂不可用，请稍后重试。',
-      confirm: { value: '知道了', action: () => {} }
-    })
-  }
-
   build() {
     Column({ space: 18 }) {
       Row() {
         Text('空气质量').fontSize(20).fontWeight(FontWeight.Medium).fontColor(A.ivory)
         Blank()
-        Text(this.air.standard).fontSize(10).fontColor(this.themeColors.textSecondary)
+        Text(this.air.standard).fontSize(11).fontColor(this.themeColors.textSecondary)
       }.width('100%')
-      Column({ space: 16 }) {
+      Button({ type: ButtonType.Normal }) {
+        Column({ space: 16 }) {
         if (!this.air.available) {
           Text('空气质量暂不可用').fontSize(14).fontColor(this.themeColors.textSecondary)
             .width('100%').padding({ top: 12, bottom: 12 })
@@ -70,25 +65,27 @@ export struct AirQualityCard {
               Text('严重污染').fontSize(9).fontColor(this.themeColors.textSecondary)
             }.width('100%').accessibilityLevel('no-hide-descendants')
           }.width('100%')
-          Divider().color(A.border).strokeWidth(.5)
+          Divider().color(this.palette.border).strokeWidth(.5)
           Flex({ wrap: FlexWrap.Wrap }) {
             ForEach(WeatherPresentation.pollutants(this.air), (item: PollutantValue) => {
               Column({ space: 5 }) {
-                Text(item.label).fontSize(10).fontColor(this.themeColors.textSecondary)
+                Text(item.label).fontSize(11).fontColor(this.themeColors.textSecondary)
                 Text(item.value).fontSize(22).fontWeight(300).fontColor(A.ivory)
                   .maxLines(1).minFontSize(16).maxFontSize(22)
                   .width('100%').textAlign(TextAlign.Start)
                   .heightAdaptivePolicy(TextHeightAdaptivePolicy.MIN_FONT_SIZE_FIRST)
-                Text(item.unit).fontSize(9).fontColor(this.themeColors.textSecondary)
+                Text(item.unit).fontSize(10).fontColor(this.themeColors.textSecondary)
               }.width('33.33%').padding({ top: 8, bottom: 10, right: 8 }).alignItems(HorizontalAlign.Start)
                 .accessibilityText(`${item.label}，${item.value} ${item.unit}`)
             }, (item: PollutantValue) => JSON.stringify(item))
           }.width('100%')
         }
-      }.width('100%').padding(20).borderRadius(A.radius)
-        .linearGradient({ angle: 125, colors: [['rgba(130,173,163,0.16)', 0], [A.panelBottom, 1]] })
-        .border({ width: .7, color: A.border })
-        .onClick(() => this.showDetail())
+        }.width('100%').padding(20)
+      }.width('100%').padding(0).borderRadius(A.radius).clip(true).backgroundColor(Color.Transparent)
+        .linearGradient({ angle: 125, colors: [[this.palette.panelTop, 0], [this.palette.panelBottom, 1]] })
+        .border({ width: .7, color: this.palette.border, radius: A.radius })
+        .onClick(() => this.onInspect())
+        .accessibilityGroup(true)
         .accessibilityText(this.air.available ? `${this.air.standard} 空气质量指数${this.air.aqi}，${this.air.level}，点击查看污染物详情` : '空气质量暂不可用')
     }.width('100%').padding({ top: 26, bottom: 8 })
   }

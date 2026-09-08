@@ -48,6 +48,8 @@ with a webpage.
 
 ## Preview and evidence
 
+- [Latest review follow-up native screens](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/review-delivery.jpg)
+- [Advice consistency, adaptive materials and native sheets](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/docs/experience-review-followup.md)
 - [Latest lower-home native before/after](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/atmosphere-comparison.jpg)
 - [Atmosphere/instrument implementation and bounded QA](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/docs/atmosphere-polish.md)
 - [Current product-shell native screens](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/product-shell.jpg)
@@ -67,9 +69,17 @@ with a webpage.
 
 - Hvigor `assembleHap` with SDK `6.1.1(24)` succeeds; unsigned HAP installs and
   launches on the Pura 90 emulator.
-- Fifty-nine real-service/model/page-method tests pass with platform I/O mocked,
+- Ninety-one real-service/model/page-method tests pass with platform I/O mocked,
   including provider-separated offline restoration, city-local solar boundaries,
   night coverage, old-cache upgrades, pollutants, life entries and snow positions.
+- Review follow-up: locally generated exercise advice now accounts for known AQI
+  and adverse weather; missing/unknown air cannot assert favorable outdoor conditions.
+  UV distinguishes daily maxima/forecasts from current intensity, including old caches
+  and city-midnight transitions. Native air/life/alert sheets share city/weather materials,
+  preserve all warning rows and pollutant units, and close on page hide/refresh.
+  Current-night ~377vp and 320vp-parent/1.3x-font checks include sheet close/back/reopen,
+  expansion and readable units; temporary hooks removed. Other weather palettes are
+  model-tested, not claimed as a complete native screenshot matrix.
 - Latest lower-home polish preserves the hero, six pollutants, seven life entries
   and all prior detail fields. Shared translucent materials, native wind compass,
   city-time daylight arc and actual six-band AQI marker replace repetitive tiles.

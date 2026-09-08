@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import {
   WeatherData,
+  LifeIndex,
   WeatherUiState,
   WeatherUiStatus,
   WeatherVisualState
@@ -22,10 +23,18 @@ import { LifeIndexGrid } from '../components/LifeIndexGrid'
 import { BottomNavigation } from '../components/BottomNavigation'
 import { WeatherPresentation } from '../models/WeatherPresentation'
 import { WeatherInstruments } from '../models/WeatherInstruments'
+import { AtmospherePalette, AtmosphereTokens } from '../theme/AtmosphereTokens'
+import { WeatherDetailContent, WeatherDetailPresentation } from '../models/WeatherDetailPresentation'
+import { WeatherDetailSheet } from '../components/WeatherDetailSheet'
 
 @Entry
 @Component
 struct Index {
+  @State palette: AtmospherePalette = new AtmospherePalette()
+  @State detailOpen: boolean = false
+  @State detailContent: WeatherDetailContent = new WeatherDetailContent()
+  @State compactHeader: boolean = false
+  private inspectedLife: LifeIndex | null = null
   @State uiState: WeatherUiState = new WeatherUiState()
   @State weatherData: WeatherData = new WeatherData()
   @State visualState: WeatherVisualState = WeatherVisualState.CLEAR_DAY
@@ -61,6 +70,7 @@ struct Index {
   }
 
   aboutToDisappear(): void {
+    this.detailOpen = false
     this.disposed = true
     this.pageActive = false
     this.requestVersion++
@@ -70,7 +80,7 @@ struct Index {
     }
   }
 
-  onPageHide(): void { this.pageActive = false }
+  onPageHide(): void { this.pageActive = false; this.detailOpen = false }
 
   async onPageShow(): Promise<void> {
     if (this.disposed) return
@@ -92,6 +102,7 @@ struct Index {
   private async loadData(forceRefresh: boolean): Promise<void> {
     if (this.disposed) return
     if (this.loading && !forceRefresh) return
+    this.detailOpen = false
     this.loading = true
     const version: number = ++this.requestVersion
     const previous: WeatherData | undefined = this.weatherData.lastUpdate > 0 ? this.weatherData : undefined
@@ -196,10 +207,35 @@ struct Index {
     this.isNight = scene.isNight
     this.visualState = scene.visualState
     this.themeColors = WeatherTheme.getColors(this.visualState, this.isNight)
+    this.palette = AtmosphereTokens.forWeather(this.weatherData, this.sceneTime)
+    if (this.detailOpen && this.inspectedLife) {
+      this.detailContent = WeatherDetailPresentation.life(this.weatherData, this.inspectedLife)
+    }
     if (updateBackground) {
       const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
       this.updateCityBackground(context, this.weatherData.cityId)
     }
+  }
+
+  private openAirDetail(): void {
+    if (this.disposed || !this.pageActive || this.loading) return
+    this.inspectedLife = null
+    this.detailContent = WeatherDetailPresentation.air(this.weatherData)
+    this.detailOpen = true
+  }
+
+  private openLifeDetail(item: LifeIndex): void {
+    if (this.disposed || !this.pageActive || this.loading) return
+    this.inspectedLife = item
+    this.detailContent = WeatherDetailPresentation.life(this.weatherData, item)
+    this.detailOpen = true
+  }
+
+  private openAlerts(): void {
+    if (this.disposed || !this.pageActive || this.loading) return
+    this.inspectedLife = null
+    this.detailContent = WeatherDetailPresentation.alerts(this.weatherData)
+    this.detailOpen = true
   }
 
   build() {
@@ -212,7 +248,9 @@ struct Index {
         } else {
           this.contentBuilder()
         }
-        if (this.scrolled) {
+        if (this.compactHeader && this.weatherData.lastUpdate > 0) {
+          this.compactTopBar()
+        } else if (this.scrolled) {
           Column().width('100%').height(38).backgroundColor(this.themeColors.pageBackground)
             .hitTestBehavior(HitTestMode.None).accessibilityLevel('no')
         }
@@ -223,6 +261,40 @@ struct Index {
       })
       BottomNavigation({ selected: 'weather' })
     }.width('100%').height('100%').backgroundColor(this.themeColors.pageBackground)
+      .bindSheet($$this.detailOpen, this.detailBuilder(), {
+        detents: [SheetSize.MEDIUM, SheetSize.LARGE], preferType: SheetType.BOTTOM,
+        dragBar: true, showClose: false, backgroundColor: this.palette.sheetBackground,
+        maskColor: 'rgba(0,8,16,0.46)',
+        onDisappear: () => { this.detailOpen = false }
+      })
+  }
+
+  @Builder
+  detailBuilder() {
+    WeatherDetailSheet({ content: this.detailContent, palette: this.palette,
+      onClose: () => { this.detailOpen = false } })
+  }
+
+  @Builder
+  compactTopBar() {
+    Row({ space: 8 }) {
+      Button({ type: ButtonType.Normal }) {
+        Row({ space: 6 }) {
+          Text(this.weatherData.city).fontSize(16).fontWeight(FontWeight.Medium)
+            .fontColor(this.themeColors.textColor).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+          Image($r('app.media.chevron_right')).width(13).height(13)
+            .fillColor(this.palette.accent).rotate({ angle: 90 }).accessibilityLevel('no')
+        }.width('100%')
+      }.layoutWeight(1).height(44).padding(0).backgroundColor(Color.Transparent)
+        .accessibilityText(`当前城市${this.weatherData.city}，切换城市`)
+        .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/CitySelector' }))
+      Text(`${this.displayTemperature(this.weatherData.current.temp)}°`).fontSize(24).fontWeight(300)
+        .fontColor(this.themeColors.textColor)
+      Text(this.weatherData.current.text).fontSize(12).fontColor(this.themeColors.textSecondary)
+        .maxLines(1).constraintSize({ maxWidth: 84 })
+    }.width('100%').padding({ left: 24, right: 24, top: 36, bottom: 4 })
+      .backgroundColor(this.themeColors.pageBackground)
+      .border({ width: { bottom: .5 }, color: this.palette.border })
   }
 
   @Builder
@@ -253,7 +325,7 @@ struct Index {
           DynamicWeatherBackground({
             visualState: this.visualState, hour: this.currentHour,
             isNight: this.isNight, nightPhoto: this.nightPhoto, cityImageAspect: this.cityImageAspect,
-            motionEnabled: this.motionEnabled, active: this.pageActive && this.sceneVisible,
+            motionEnabled: this.motionEnabled, active: this.pageActive && this.sceneVisible && !this.detailOpen,
             themeColors: this.themeColors, cityBackgroundResource: this.cityBackgroundResource,
             hasBundledCityBackground: this.hasBundledCityBackground, cityBackgroundUrl: this.cityBackgroundUrl
           }).height(this.sceneHeight)
@@ -276,12 +348,15 @@ struct Index {
                 currentNight: this.isNight })
               WeeklyForecast({ daily: this.weatherData.daily, themeColors: this.themeColors, unit: this.unit })
               AirQualityCard({ air: this.weatherData.air, current: this.weatherData.current,
-                unit: this.unit, themeColors: this.themeColors })
-              LifeIndexGrid({ lifeIndex: this.weatherData.lifeIndex, themeColors: this.themeColors })
+                unit: this.unit, themeColors: this.themeColors, palette: this.palette,
+                onInspect: () => this.openAirDetail() })
+              LifeIndexGrid({ lifeIndex: this.weatherData.lifeIndex, themeColors: this.themeColors,
+                data: this.weatherData, now: this.sceneTime, palette: this.palette,
+                onInspect: (item: LifeIndex) => this.openLifeDetail(item) })
               Text('天气详情').fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
                 .alignSelf(ItemAlign.Start).margin({ top: 30, bottom: 18 })
               DataGrid({ current: this.weatherData.current, themeColors: this.themeColors, unit: this.unit,
-                solar: WeatherInstruments.solar(this.weatherData, this.sceneTime) })
+                solar: WeatherInstruments.solar(this.weatherData, this.sceneTime), palette: this.palette })
               Column({ space: 6 }) {
                 Text(this.updateText()).fontSize(11).fontColor(this.themeColors.textSecondary)
                 Button('关于与数据来源', { type: ButtonType.Normal }).height(44).fontSize(11)
@@ -290,8 +365,8 @@ struct Index {
               }.width('100%').margin({ top: 24, bottom: 16 })
             }
             .width('100%').padding({ left: 24, right: 24 })
-            .linearGradient({ angle: 180, colors: [['rgba(100,145,155,0)', 0],
-              ['rgba(100,145,155,0.035)', .3], ['rgba(80,110,130,0.065)', 1]] })
+            .linearGradient({ angle: 180, colors: [[Color.Transparent, 0], [this.palette.wash, .35],
+              [this.palette.panelBottom, 1]] })
           }.width('100%')
         }.width('100%')
       }
@@ -300,6 +375,7 @@ struct Index {
         // Stop expensive scene work once it has scrolled off screen.
         this.sceneVisible = this.scroller.currentOffset().yOffset < this.sceneHeight
         this.scrolled = this.scroller.currentOffset().yOffset > 16
+        this.compactHeader = this.scroller.currentOffset().yOffset > 280
       })
     }
     .width('100%').height('100%')
@@ -318,10 +394,7 @@ struct Index {
         .backgroundColor('rgba(111,61,36,0.62)')
     }
     .width('100%').constraintSize({ minHeight: 44 }).padding({ left: 24, right: 24 })
-    .onClick(() => this.getUIContext().showAlertDialog({
-      title: this.weatherData.alerts[0].title, message: this.weatherData.alerts[0].detail,
-      confirm: { value: '知道了', action: () => {} }
-    }))
+    .onClick(() => this.openAlerts())
     .accessibilityText(`${this.weatherData.alerts[0].title}，点击查看预警详情`)
   }
 

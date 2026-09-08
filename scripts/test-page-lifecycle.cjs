@@ -36,6 +36,7 @@ function home() {
   class Data { lastUpdate = 0; cityId = 'test-city'; }
   class Ui { static loading() { return 'loading'; } static ready() { return 'ready'; } static error() { return 'error'; } }
   const Home = page('Index', { WeatherData: Data, WeatherUiState: Ui, ThemeColors: class {},
+    AtmospherePalette: class {}, WeatherDetailContent: class {},
     WeatherVisualState: { CLEAR_DAY: 'day' }, Scroller: class {}, $r: v => v,
     WeatherService: { getInstance: () => service }, CityBackgroundService: { getInstance: () => background },
     BundledCityBackgrounds: { resolve: () => null }, NightCityBackgrounds: { resolve: () => null },
@@ -70,6 +71,26 @@ test('destroyed home ignores late page-show initialization', async () => {
   await show;
   assert.equal(f.instance.unit, 'f');
   assert.equal(f.instance.pageActive, false);
+});
+
+test('leaving or destroying home closes its weather sheet so it cannot cover the next page', () => {
+  const f = home(); f.instance.detailOpen = true;
+  f.instance.onPageHide();
+  assert.equal(f.instance.detailOpen, false);
+  f.instance.detailOpen = true;
+  f.instance.aboutToDisappear();
+  assert.equal(f.instance.detailOpen, false);
+});
+
+test('refresh closes the old detail sheet before replacing its underlying weather data', async () => {
+  const f = home(), pending = deferred(), started = deferred();
+  f.instance.detailOpen = true;
+  f.service.loadWeather = () => { started.resolve(); return pending.promise; };
+  const loading = f.instance.loadData(true);
+  await started.promise;
+  assert.equal(f.instance.detailOpen, false);
+  pending.resolve({ lastUpdate: 100, cityId: 'test-city' });
+  await loading;
 });
 
 test('destroyed home ignores late city image resolution', async () => {

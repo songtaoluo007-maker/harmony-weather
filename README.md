@@ -13,6 +13,10 @@
 城市当地日照轨迹与紧凑环境指标。保留真实数据与全部原有入口；见
 [原生前后对比](design/atmosphere-comparison.jpg) 和 [本轮界面验收](docs/atmosphere-polish.md)。
 
+最新专业复核已落地：下半屏材质随城市昼夜与天气变化，空气/生活/预警使用统一原生详情面板；
+运动提示联动 AQI，紫外线明确区分当日峰值与实时强度。见
+[最新原生界面](design/review-delivery.jpg) 与 [复核改进及验证边界](docs/experience-review-followup.md)。
+
 ## 本地天气配置
 
 项目现在默认连接 **Open-Meteo 在线天气**，无需注册、登录或 API 密钥。
@@ -75,6 +79,6 @@
 
 ## 状态测试
 
-使用 DevEco 自带 Node 执行 `node --test scripts/test-weather-state.cjs scripts/test-news.cjs scripts/test-page-lifecycle.cjs scripts/test-instruments.cjs`。脚本通过
+使用 DevEco 自带 Node 执行 `node --test scripts/test-weather-state.cjs scripts/test-news.cjs scripts/test-page-lifecycle.cjs scripts/test-instruments.cjs scripts/test-review-experience.cjs`。脚本通过
 DevEco TypeScript 加载真实模型与 Service，只替换平台 I/O；这不等同于真实 API
 联调。若使用外部 Node，请将 `DEVECO_STUDIO_HOME` 指向 DevEco 安装目录。

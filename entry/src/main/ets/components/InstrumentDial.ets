@@ -6,6 +6,7 @@ export struct InstrumentDial {
   @Prop @Watch('draw') kind: string = 'wind'
   @Prop @Watch('draw') value: number = -1
   @Prop @Watch('draw') active: boolean = true
+  @Prop @Watch('draw') tint: string = A.teal
   private context: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private ready: boolean = false
   private canvasWidth: number = 0
@@ -36,7 +37,7 @@ export struct InstrumentDial {
     c.fillText('东', x + radius + 10, y)
     if (this.value >= 0) {
       c.save(); c.translate(x, y); c.rotate(this.value * Math.PI / 180)
-      c.fillStyle = A.teal
+      c.fillStyle = this.tint
       c.beginPath(); c.moveTo(0, -radius + 10); c.lineTo(-5, 7); c.lineTo(0, 3); c.lineTo(5, 7); c.closePath(); c.fill()
       c.fillStyle = 'rgba(166,216,212,0.20)'
       c.beginPath(); c.moveTo(0, radius - 12); c.lineTo(-4, -3); c.lineTo(4, -3); c.closePath(); c.fill()
@@ -92,7 +93,7 @@ export struct InstrumentDial {
       const selected: boolean = this.value >= 0 && (index + .5) / 30 <= fraction
       const length: number = index % 5 === 0 ? 13 : 8
       this.line(gap * (index + .5), this.canvasHeight / 2 - length / 2, gap * (index + .5),
-        this.canvasHeight / 2 + length / 2, selected ? A.teal : A.track, 2)
+        this.canvasHeight / 2 + length / 2, selected ? this.tint : A.track, 2)
     }
   }
 
