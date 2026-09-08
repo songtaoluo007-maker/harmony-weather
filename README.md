@@ -6,15 +6,25 @@
 
 ## 本地天气配置
 
-项目默认使用 `mock_weather.json`，因此没有 API 密钥也能完整运行。
+项目现在默认连接 **Open-Meteo 在线天气**，无需注册、登录或 API 密钥。
+当前天气、逐小时、15 日预报与日出日落来自在线气象模型；空气质量为 CAMS
+模型估算，明确标记为 **US AQI**，不冒充中国站点实测。
 
-如需接入和风天气：
+免费端点限非商业用途并有调用额度，不提供可用性保证；正式商用应选择付费套餐
+或其他获授权的数据源。详情见 [官方价格与使用范围](https://open-meteo.com/en/pricing)。
+网络失败时只读取同一数据源、同一城市的真实缓存并显示“离线缓存”；无缓存则失败重试，
+不会自动替换成演示数据。只有显式设置 `provider: "mock"` 才用于演示；选择和风却缺少
+凭据时会报告配置错误，不会悄悄改为模拟数据。
+
+如需改回和风天气（此轮无密钥，尚未实测该账户接口）：
 
 1. 复制根目录的 `weather_config.local.example.json`。
-2. 填入自己的和风天气 API Key。
+2. 填入自己的和风天气 API Key，以及控制台分配的专属 API Host；保留 `provider: "qweather"`。
 3. 将文件放到 `entry/src/main/resources/rawfile/weather_config.local.json`。
 
 该文件已加入 `.gitignore`。客户端密钥仍可能从安装包中提取，正式发布建议使用服务端代理。
+本地文件优先于默认配置；切回免费源时删除本地覆盖文件或将其 provider 改为 `openmeteo`。
+完整说明见 [在线天气与动态场景](docs/live-weather-scenes.md)。
 
 ## 构建
 
@@ -30,14 +40,17 @@
 
 - 选定视觉稿：[design/originos-weather-target.png](design/originos-weather-target.png)
 - 2026-09 原生界面总览：[design/redesign-overview.jpg](design/redesign-overview.jpg)
-- 深圳首页：[design/redesign-home-final.jpeg](design/redesign-home-final.jpeg)
+- 当前在线天气 / 城市夜景 / 白天雨景：[design/live-weather-scenes.jpg](design/live-weather-scenes.jpg)
+- 深圳自动夜景：[design/live-shenzhen-night.jpeg](design/live-shenzhen-night.jpeg)
 - 生活气象：[design/redesign-life-final.jpeg](design/redesign-life-final.jpeg)
-- 雨景实际动态采样：[design/redesign-rain-motion.gif](design/redesign-rain-motion.gif)
+- 白天雨景实际动态采样：[design/live-day-rain-motion.gif](design/live-day-rain-motion.gif)（明确标注的背景预览）
 - 本轮设计说明与后续优先级：[docs/ui-redesign-2026-09.md](docs/ui-redesign-2026-09.md)
 - 实际验证范围与限制：[design-qa.md](design-qa.md)
-- 城市影像会按稳定城市 ID 自动切换；当前配置中的 15 个城市均已离线打包。
+- 城市影像按稳定城市 ID 与昼夜自动切换；当前 15 个城市的白天、夜间照片均已离线打包。
+- 夜间使用有真实建筑灯光的夜景/暮色照片，不再只是调暗白天照片；照片不是实时摄像头。
 - 城市列表变化后，运行 `scripts/fetch_city_backgrounds.py` 可一次性更新全部城市影像和 ArkTS 映射，无需逐城制作。
 - 城市影像来源见 [CITY_BACKGROUND_SOURCES.md](CITY_BACKGROUND_SOURCES.md)。
+- 夜景批量下载与映射：`powershell -File scripts/fetch-night-backgrounds.ps1 -Download`；来源和许可见 [CITY_NIGHT_SOURCES.md](CITY_NIGHT_SOURCES.md)。
 - 图标来源和许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
 
 ## 状态测试

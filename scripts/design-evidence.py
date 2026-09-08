@@ -31,7 +31,7 @@ def board(names, labels, output, width=360):
     out.save(DESIGN / output, quality=92)
 
 
-def motion():
+def motion(prefix='redesign-rain'):
     frames, times = [], []
     with tempfile.TemporaryDirectory(prefix='harmony-motion-') as directory:
         for index in range(18):
@@ -41,13 +41,14 @@ def motion():
             subprocess.run([HDC, 'file', 'recv', '/data/local/tmp/motion-frame.jpeg', str(path)], check=True, stdout=subprocess.DEVNULL)
             frame = Image.open(path).convert('RGB')
             if index in (0, 17):
-                frame.save(DESIGN / f'redesign-rain-{"a" if index == 0 else "b"}.jpeg', quality=94)
+                frame.save(DESIGN / f'{prefix}-{"a" if index == 0 else "b"}.jpeg', quality=94)
             frames.append(frame.resize((440, 952), Image.Resampling.LANCZOS))
             time.sleep(0.35)
     durations = [max(20, round((b - a) * 1000)) for a, b in zip(times, times[1:])]
     durations.append(durations[-1])
-    frames[0].save(DESIGN / 'redesign-rain-motion.gif', save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=2)
-    (DESIGN / 'motion-capture.json').write_text(json.dumps({'frames': len(frames), 'frame_duration_ms': durations, 'captured_span_seconds': round(times[-1] - times[0], 3), 'note': 'Native emulator screen captures. Playback timings match capture intervals; repeated GIF loop is not seamless.'}, indent=2), encoding='utf-8')
+    frames[0].save(DESIGN / f'{prefix}-motion.gif', save_all=True, append_images=frames[1:], duration=durations, loop=0, disposal=2)
+    metadata = 'motion-capture.json' if prefix == 'redesign-rain' else f'{prefix}-capture.json'
+    (DESIGN / metadata).write_text(json.dumps({'frames': len(frames), 'frame_duration_ms': durations, 'captured_span_seconds': round(times[-1] - times[0], 3), 'note': 'Native emulator screen captures. Playback timings match capture intervals; repeated GIF loop is not seamless.'}, indent=2), encoding='utf-8')
     print('Captured', len(frames), 'native frames over', round(times[-1] - times[0], 2), 'seconds')
 
 
@@ -69,8 +70,23 @@ def focus():
 
 if __name__ == '__main__':
     if sys.argv[1] == 'motion':
-        motion()
+        motion(sys.argv[2] if len(sys.argv) > 2 else 'redesign-rain')
+    elif sys.argv[1] == 'live-board':
+        board(['live-shenzhen-night.jpeg', 'live-beijing-night.jpeg', 'live-day-rain-preview.jpeg'], ['深圳 · 在线天气 / 自动夜景', '北京 · 切换城市 / 自动夜景', '白天雨 · 明确标注的背景预览'], 'live-weather-scenes.jpg')
     elif sys.argv[1] == 'board':
         board(['redesign-home-final.jpeg', 'redesign-life-final.jpeg', 'redesign-cities-final.jpeg', 'redesign-settings-final.jpeg'], ['首页 · 模拟器实拍', '生活气象 · 模拟器实拍', '城市管理 · 模拟器实拍', '设置 · 模拟器实拍'], 'redesign-overview.jpg')
         board(['originos-weather-target.png', 'redesign-home-final.jpeg'], ['已确认的视觉方向', '原生运行效果 · 当前演示数据'], 'redesign-reference-comparison.jpg', 440)
         focus()
+    elif sys.argv[1] == 'night-assets':
+        records = json.loads((DESIGN / 'city-night-selected.json').read_text(encoding='utf-8'))
+        sheet = Image.new('RGB', (1300, 630), '#0D1C2A')
+        draw = ImageDraw.Draw(sheet)
+        font = ImageFont.truetype(FONT, 15)
+        for index, item in enumerate(records):
+            media = ROOT / 'entry/src/main/resources/base/media'
+            photo = Image.open(next(media.glob(f'city_night_{item["id"]}.*'))).convert('RGB')
+            photo.thumbnail((244, 175))
+            x, y = 8 + (index % 5) * 260, 8 + (index // 5) * 210
+            sheet.paste(photo, (x, y))
+            draw.text((x, y + 180), item['name'], font=font, fill='white')
+        sheet.save(DESIGN / 'city-night-assets-contact.jpg', quality=92)

@@ -182,10 +182,19 @@ def generate_mapping(records: list[dict]) -> None:
     source = """export class BundledCityBackground {
   resource: Resource
   attribution: string
+  isNightPhoto: boolean
+  aspectRatio: number
+  sourceUrl: string
+  licenseUrl: string
 
-  constructor(resource: Resource, attribution: string) {
+  constructor(resource: Resource, attribution: string, isNightPhoto: boolean = false, aspectRatio: number = 1.5,
+    sourceUrl: string = '', licenseUrl: string = '') {
     this.resource = resource
     this.attribution = attribution
+    this.isNightPhoto = isNightPhoto
+    this.aspectRatio = aspectRatio
+    this.sourceUrl = sourceUrl
+    this.licenseUrl = licenseUrl
   }
 }
 

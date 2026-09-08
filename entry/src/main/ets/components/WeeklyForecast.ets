@@ -89,7 +89,7 @@ export struct WeeklyForecast {
                 }
                 .width(this.columnWidth)
                 .accessibilityText(`${item.date}，${item.textDay}，最高${this.temperature(item.high)}度，最低${this.temperature(item.low)}度`)
-              }, (item: DailyWeather) => item.date)
+              }, (item: DailyWeather) => JSON.stringify(item))
             }
             Canvas(this.chart)
               .width(this.columnWidth * Math.min(7, this.daily.length)).height(116)

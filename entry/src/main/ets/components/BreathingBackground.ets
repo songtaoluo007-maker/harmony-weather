@@ -6,6 +6,9 @@ import { ThemeColors, WeatherTheme } from '../theme/WeatherTheme'
 export struct DynamicWeatherBackground {
   @Prop @Watch('restartMotion') visualState: WeatherVisualState = WeatherVisualState.CLEAR_DAY
   @Prop hour: number = 12
+  @Prop isNight: boolean = false
+  @Prop nightPhoto: boolean = false
+  @Prop cityImageAspect: number = 1.5
   @Prop @Watch('restartMotion') motionEnabled: boolean = true
   @Prop @Watch('restartMotion') active: boolean = true
   @Prop themeColors: ThemeColors = new ThemeColors()
@@ -56,19 +59,34 @@ export struct DynamicWeatherBackground {
   }
 
   private sceneHeight(): number { return Math.min(700, Math.max(470, this.sceneWidth * 1.55)) }
+  private photoHeight(): number { return Math.min(this.sceneHeight() * 0.66, Math.max(this.sceneHeight() * 0.42, this.sceneWidth / this.cityImageAspect)) }
 
   build() {
     Stack({ alignContent: Alignment.Top }) {
       Stack({ alignContent: Alignment.Top }) {
-        Image(WeatherTheme.getBackgroundResource(this.visualState, this.hour))
-          .width('100%').height('100%').objectFit(ImageFit.Cover)
-        if (this.hasBundledCityBackground || this.cityBackgroundUrl) {
-          Image(this.hasBundledCityBackground ? this.cityBackgroundResource : this.cityBackgroundUrl)
+        if (this.nightPhoto) {
+          Column().width('100%').height('100%').backgroundColor(this.themeColors.skyTop)
+        } else {
+          Image(WeatherTheme.getBackgroundResource(this.visualState, this.hour, this.isNight))
             .width('100%').height('100%').objectFit(ImageFit.Cover)
-            .brightness(WeatherTheme.getBackgroundBrightness(this.visualState))
+        }
+        if (this.hasBundledCityBackground || this.cityBackgroundUrl) {
+          if (this.nightPhoto) {
+            Image(this.cityBackgroundResource).width('100%').height(this.photoHeight()).objectFit(ImageFit.Cover)
+              .translate({ y: this.sceneHeight() - this.photoHeight() - 20 })
+              .brightness(WeatherTheme.getBackgroundBrightness(this.visualState, true))
+            Column().width('100%').height(this.photoHeight() * 0.35)
+              .linearGradient({ direction: GradientDirection.Bottom,
+                colors: [[this.themeColors.skyTop, 0], ['rgba(0,0,0,0)', 1]] })
+              .translate({ y: this.sceneHeight() - this.photoHeight() - 20 })
+          } else {
+            Image(this.hasBundledCityBackground ? this.cityBackgroundResource : this.cityBackgroundUrl)
+              .width('100%').height('100%').objectFit(ImageFit.Cover)
+              .brightness(WeatherTheme.getBackgroundBrightness(this.visualState, this.isNight))
+          }
         }
         Column().width('100%').height('100%')
-          .backgroundColor(WeatherTheme.getWeatherOverlay(this.visualState, this.hour))
+          .backgroundColor(WeatherTheme.getWeatherOverlay(this.visualState, this.hour, this.isNight))
         // Hide the blurred skyline baked into legacy portrait photos; the
         // lower, sharp city remains visible beneath the procedural sky layers.
         Column().width('100%').height('100%')

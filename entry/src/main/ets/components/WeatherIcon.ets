@@ -34,8 +34,8 @@ export struct WeatherIcon {
   @Prop isNight: boolean = false
 
   private icon(): Resource {
-    if (this.isNight && this.text.includes('晴')) return $r('app.media.meteo_clear_night')
     if (this.isNight && this.text.includes('多云')) return $r('app.media.meteo_partly_cloudy_night')
+    if (this.isNight && this.text.includes('晴')) return $r('app.media.meteo_clear_night')
     return weatherIconResource(this.text)
   }
 

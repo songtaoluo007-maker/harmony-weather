@@ -33,6 +33,12 @@ export enum WeatherUiStatus {
   ERROR = 'error'
 }
 
+export class WeatherSceneState {
+  hour: number = 12
+  isNight: boolean = false
+  visualState: WeatherVisualState = WeatherVisualState.CLEAR_DAY
+}
+
 export class CityInfo {
   id: string = ''
   name: string = ''
@@ -82,6 +88,8 @@ export class HourlyWeather {
   pop: number = 0
   windDir: string = ''
   windScale: string = ''
+  isDay: boolean = true
+  timestamp: number = 0
 }
 
 export class DailyWeather {
@@ -96,9 +104,13 @@ export class DailyWeather {
   humidity: number = 0
   pop: number = 0
   uvIndex: number = 0
+  sunriseAt: number = 0
+  sunsetAt: number = 0
 }
 
 export class AirQuality {
+  available: boolean = true
+  standard: string = 'CN AQI'
   aqi: number = 32
   level: string = '优'
   pm25: number = 18
@@ -129,11 +141,38 @@ export class WeatherData {
   lastUpdate: number = 0
   isOffline: boolean = false
   source: string = 'mock'
+  timezone: string = 'Asia/Shanghai'
+  utcOffsetSeconds: number = 28800
+  observedAt: number = 0
+
+  static localDate(timestamp: number, utcOffsetSeconds: number): Date {
+    return new Date(timestamp + utcOffsetSeconds * 1000)
+  }
+
+  static sceneAt(data: WeatherData, now: number = Date.now()): WeatherSceneState {
+    const local: Date = WeatherData.localDate(now, data.utcOffsetSeconds)
+    const scene: WeatherSceneState = new WeatherSceneState()
+    scene.hour = local.getUTCHours() + local.getUTCMinutes() / 60
+    const today: string = local.toISOString().substring(0, 10)
+    const solar: DailyWeather | undefined = data.daily.find((day: DailyWeather) => day.date === today)
+    const rise: string = solar && solar.sunriseAt > 0 ? WeatherData.localTime(solar.sunriseAt, data.utcOffsetSeconds) : data.current.sunrise
+    const set: string = solar && solar.sunsetAt > 0 ? WeatherData.localTime(solar.sunsetAt, data.utcOffsetSeconds) : data.current.sunset
+    scene.isNight = WeatherData.resolveVisualState('晴', scene.hour, rise, set) === WeatherVisualState.CLEAR_NIGHT
+    scene.visualState = WeatherData.resolveVisualState(data.current.text, scene.hour, rise, set)
+    return scene
+  }
+
+  static localTime(timestamp: number, utcOffsetSeconds: number): string {
+    return WeatherData.localDate(timestamp, utcOffsetSeconds).toISOString().substring(11, 16)
+  }
 
   static fromMock(json: Record<string, Object>): WeatherData {
     const data: WeatherData = new WeatherData()
     data.city = WeatherData.getStr(json, 'city', '深圳')
     data.cityId = WeatherData.getStr(json, 'cityId', '101280601')
+    data.timezone = WeatherData.getStr(json, 'timezone', 'Asia/Shanghai')
+    data.utcOffsetSeconds = WeatherData.getNum(json, 'utcOffsetSeconds', 28800)
+    data.observedAt = WeatherData.getNum(json, 'observedAt', 0)
 
     const cur: Record<string, Object> | undefined = json['current'] as Record<string, Object> | undefined
     if (cur) {
@@ -166,6 +205,8 @@ export class WeatherData {
         item.pop = WeatherData.getNum(h, 'pop', 0)
         item.windDir = WeatherData.getStr(h, 'windDir', '')
         item.windScale = WeatherData.getStr(h, 'windScale', '')
+        item.isDay = WeatherData.getBool(h, 'isDay', true)
+        item.timestamp = WeatherData.getNum(h, 'timestamp', 0)
         return item
       })
     }
@@ -186,12 +227,16 @@ export class WeatherData {
         item.humidity = WeatherData.getNum(d, 'humidity', 0)
         item.pop = WeatherData.getNum(d, 'pop', 0)
         item.uvIndex = WeatherData.getNum(d, 'uvIndex', 0)
+        item.sunriseAt = WeatherData.getNum(d, 'sunriseAt', 0)
+        item.sunsetAt = WeatherData.getNum(d, 'sunsetAt', 0)
         return item
       })
     }
 
     const air: Record<string, Object> | undefined = json['air'] as Record<string, Object> | undefined
     if (air) {
+      data.air.available = WeatherData.getBool(air, 'available', true)
+      data.air.standard = WeatherData.getStr(air, 'standard', 'CN AQI')
       data.air.aqi = WeatherData.getNum(air, 'aqi', 32)
       data.air.level = WeatherData.getStr(air, 'level', '优')
       data.air.pm25 = WeatherData.getNum(air, 'pm25', 18)
@@ -271,8 +316,10 @@ export class WeatherData {
     if (type === WeatherType.FOGGY) return WeatherVisualState.HAZE
     const sunriseParts: string[] = sunrise.split(':')
     const sunsetParts: string[] = sunset.split(':')
-    const sunriseHour: number = sunriseParts.length === 2 ? Number(sunriseParts[0]) + Number(sunriseParts[1]) / 60 : 6
-    const sunsetHour: number = sunsetParts.length === 2 ? Number(sunsetParts[0]) + Number(sunsetParts[1]) / 60 : 19
+    const sunriseValue: number = sunriseParts.length === 2 ? Number(sunriseParts[0]) + Number(sunriseParts[1]) / 60 : 6
+    const sunsetValue: number = sunsetParts.length === 2 ? Number(sunsetParts[0]) + Number(sunsetParts[1]) / 60 : 19
+    const sunriseHour: number = Number.isFinite(sunriseValue) ? sunriseValue : 6
+    const sunsetHour: number = Number.isFinite(sunsetValue) ? sunsetValue : 19
     const isNight: boolean = hour < sunriseHour || hour >= sunsetHour
     if (type === WeatherType.SUNNY) {
       return isNight ? WeatherVisualState.CLEAR_NIGHT : WeatherVisualState.CLEAR_DAY

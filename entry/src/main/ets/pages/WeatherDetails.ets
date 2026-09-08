@@ -44,11 +44,11 @@ struct WeatherDetails {
           .onClick(() => this.getUIContext().getRouter().back()).accessibilityText('返回天气')
         Text(this.data.city).fontSize(22).fontWeight(FontWeight.Medium).fontColor(T.text)
         Blank()
-        Text(this.data.source === 'mock' ? '演示天气' : this.data.isOffline ? '离线缓存' : '和风天气')
+        Text(this.data.source === 'mock' ? '演示天气' : this.data.isOffline ? '离线缓存' : this.data.source === 'openmeteo' ? 'Open-Meteo' : '和风天气')
           .fontSize(11).fontColor(T.muted)
       }.width('100%').padding({ left: 12, right: 24, top: 42, bottom: 20 })
       Column({ space: 8 }) {
-        Text('未来15天').fontSize(30).fontWeight(300).fontColor(T.text)
+        Text(`未来${this.data.daily.length}天`).fontSize(30).fontWeight(300).fontColor(T.text)
         Text('看见天气的起伏，从容安排每一天').fontSize(12).fontColor(T.muted)
       }.width('100%').alignItems(HorizontalAlign.Start).padding({ left: 24, right: 24, bottom: 24 })
       if (this.data.daily.length === 0) {
@@ -84,7 +84,7 @@ struct WeatherDetails {
                     Row() {
                       Text(`${item.windDir} ${item.windScale}`).fontSize(12).fontColor(T.muted)
                       Blank()
-                      Text(`湿度 ${item.humidity}%`).fontSize(12).fontColor(T.muted)
+                      Text(item.humidity >= 0 ? `平均湿度 ${item.humidity}%` : '湿度暂无').fontSize(12).fontColor(T.muted)
                     }.width('100%')
                   }.width('100%').padding({ left: 16, right: 16, bottom: 20 })
                 }

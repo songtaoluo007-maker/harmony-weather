@@ -11,6 +11,7 @@ import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
 import { util } from '@kit.ArkTS'
 import { http } from '@kit.NetworkKit'
+import { OpenMeteoService } from './OpenMeteoService'
 
 interface QWeatherNowResponse {
   code: string
@@ -227,8 +228,14 @@ export class WeatherService {
   }
 
   hasLiveConfiguration(): boolean {
+    if (this.config?.provider === 'openmeteo') return true
+    if (this.config?.provider === 'mock') return false
     const key: string = this.config?.apiKey?.trim() ?? ''
     return key.length > 0 && !key.toUpperCase().includes('YOUR_')
+  }
+
+  getProvider(): string {
+    return this.config?.provider === 'openmeteo' ? 'openmeteo' : this.config?.provider === 'mock' ? 'mock' : 'qweather'
   }
 
   findNearestCity(latitude: number, longitude: number): CityInfo {
@@ -256,7 +263,11 @@ export class WeatherService {
     const city: CityInfo = this.getCityList().find((item: CityInfo) => item.id === targetId) ?? this.getCurrentCity()
     const cached: WeatherData | undefined = this.cache.get(targetId)
     const cacheMinutes: number = this.settings.refreshMinutes || this.config?.cacheMinutes || 30
-    if (!forceRefresh && cached && Date.now() - cached.lastUpdate < cacheMinutes * 60 * 1000) {
+    const provider: string = this.getProvider()
+    if (provider !== 'mock' && !this.hasLiveConfiguration()) {
+      throw new Error('在线天气配置不完整，请配置和风凭据或切换到免费 Open-Meteo')
+    }
+    if (!forceRefresh && cached && cached.source === provider && Date.now() - cached.lastUpdate < cacheMinutes * 60 * 1000) {
       this.latestData = cached
       return cached
     }
@@ -264,7 +275,8 @@ export class WeatherService {
     const apiReady: boolean = this.hasLiveConfiguration()
     if (apiReady) {
       try {
-        const live: WeatherData = await this.fetchFromAPI(city)
+        const live: WeatherData = provider === 'openmeteo' ? await new OpenMeteoService().fetch(city) : await this.fetchFromAPI(city)
+        if (provider === 'openmeteo') live.lifeIndex = this.getDefaultLifeIndex(live.current)
         await this.savePersistentCache(context, live)
         this.cache.set(targetId, live)
         this.latestData = live
@@ -272,7 +284,7 @@ export class WeatherService {
       } catch (error) {
         console.error('实时天气请求失败: ' + JSON.stringify(error))
         const persisted: WeatherData | null = await this.readPersistentCache(context, targetId)
-        if (persisted && persisted.source === 'qweather') {
+        if (persisted && persisted.source === provider) {
           persisted.isOffline = true
           this.cache.set(targetId, persisted)
           this.latestData = persisted
@@ -290,7 +302,7 @@ export class WeatherService {
       return mock
     } catch (error) {
       const persisted: WeatherData | null = await this.readPersistentCache(context, targetId)
-      if (persisted) {
+      if (persisted && persisted.source === 'mock') {
         persisted.isOffline = true
         this.latestData = persisted
         return persisted
@@ -481,7 +493,7 @@ export class WeatherService {
   private async savePersistentCache(context: common.UIAbilityContext, data: WeatherData): Promise<void> {
     try {
       const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_cache' })
-      await store.put(`city_${data.cityId}`, JSON.stringify(data))
+      await store.put(`${data.source}_city_${data.cityId}`, JSON.stringify(data))
       await store.flush()
     } catch (error) {
       console.warn('写入天气缓存失败: ' + JSON.stringify(error))
@@ -491,7 +503,7 @@ export class WeatherService {
   private async readPersistentCache(context: common.UIAbilityContext, cityId: string): Promise<WeatherData | null> {
     try {
       const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_cache' })
-      const raw: string = String(await store.get(`city_${cityId}`, ''))
+      const raw: string = String(await store.get(`${this.getProvider()}_city_${cityId}`, ''))
       if (!raw) return null
       return WeatherData.fromMock(JSON.parse(raw) as Record<string, Object>)
     } catch (error) {
@@ -524,8 +536,8 @@ export class WeatherService {
     return [
       this.life('穿衣', 'clothing', current.temp >= 26 ? '舒适' : '薄外套', '根据体感温度及时增减衣物'),
       this.life('紫外线', 'uv', current.uv, '外出请按紫外线等级做好防晒'),
-      this.life('洗车', 'car', current.precip > 0 ? '不适宜' : '适宜', '未来降水较少，可安排洗车'),
-      this.life('感冒', 'cold', '较易发', '昼夜温差明显，注意休息'),
+      this.life('洗车', 'car', current.precip > 0 ? '不适宜' : '参考预报', '本地生活建议：出发前请查看未来降水概率'),
+      this.life('温差', 'cold', `${Math.max(0, current.high - current.low)}°`, '本地生活建议：根据昼夜温差增减衣物，不是健康风险预测'),
       this.life('运动', 'sport', current.precip > 0 ? '室内为宜' : '较适宜', '结合空气质量选择运动强度')
     ]
   }

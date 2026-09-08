@@ -1,101 +1,63 @@
-# Design QA — 2026-09-08
+# Design QA — 2026-09-08 · 在线天气与自动场景
 
-## Scope and evidence
+## 本轮验收范围
 
-This report supersedes the earlier QA claims. Acceptance is for this native UI
-redesign, not a completed production weather service or a pixel-identical clone.
+验收对象为原生 ArkTS 首页的在线数据、当地时间与城市昼夜场景，不是网页预览，也不宣称
+已完成生产级全球天气应用或逐像素复刻 vivo。保留此前已确认的现代 OriginOS-inspired
+视觉方向与具象生活插画；不使用 vivo 商标。
 
-- Source direction: `design/originos-weather-target.png` (853 × 1844).
-- Current native home: `design/redesign-home-final.jpeg` (1320 × 2856).
-- Full comparison: `design/redesign-reference-comparison.jpg`. Both images are
-  scaled proportionally to 440px wide; no UI content is retouched.
-- Focused forecast comparison: `design/redesign-forecast-comparison.jpg`.
-- Actual four-screen overview: `design/redesign-overview.jpg`.
-- Emulator: Pura 90, viewport about 377.14 × 816vp, density 3.5px/vp.
-  There is no CSS/browser viewport in this ArkTS application.
-- State: Shenzhen, daytime, 26°C, explicitly **demo** weather. Dates, hourly
-  times, city photography and native status bars differ from the June reference.
-  No exact-pixel claim is made across those intentional differences.
+- 模拟器：Pura 90，1320 × 2856px，约 377.14 × 816vp。
+- 最新总览：[在线天气与城市场景](design/live-weather-scenes.jpg)。三张原生截图等比排版，未改写画面内容。
+- 深圳：19:46，在线天气 28°C / 晴，自动显示亮灯城市与夜空，无预览标签。
+- 北京：从深圳切换后，19:46，在线天气 19°C / 多云，小时预报从 20°C 开始，替换为北京夜景。
+- 雨天：[白天雨景](design/live-day-rain-preview.jpeg)为明确标注的背景预览；仍保留当时深圳晴天数据。
+  不能用这张截图证明当地当时下雨。
+- [原生雨景动态采样](design/live-day-rain-motion.gif)：18 帧、约 14.59 秒，按实际抓帧间隔播放。
+  记录见 `design/live-day-rain-capture.json`，不是性能帧率测试或无缝视频。
 
-## Findings and iteration
+## 本轮发现、修复与回归
 
-The final reviewed screens have no remaining actionable P0/P1/P2 **visual**
-findings within the tested phone UI scope. The following findings were fixed
-and recaptured during this pass:
-
-| Finding | Fix | Post-fix evidence |
+| 问题 | 修复 | 验证 |
 | --- | --- | --- |
-| P2: Canvas labels rendered black against the dark forecast surface | Explicit fill color and measured responsive chart width | `redesign-forecast-final.jpeg` |
-| P2: City thumbnails showed sky/building fragments instead of recognizable streetscapes | Crop the sharp lower region using measured card width | `redesign-cities-final.jpeg` |
-| P2: Empty search guidance was hidden behind the keyboard | Anchor feedback beneath the result count | `qa-city-empty.jpeg` |
-| P2: Full-width warning panel overpowered the scenery | Compact visual capsule inside a 44vp-high touch row | `redesign-home-final.jpeg` |
-| P2: Scrolled content overlapped status icons | Top safe-area scrim while scrolling | `redesign-life-final.jpeg` |
+| 夜间只有调暗的白天照片，缺少建筑灯光 | 15 城市独立夜景/暮色资源；夜空与照片顶部渐变衔接 | 深圳、北京原生截图；15 张联系表及解码尺寸检查 |
+| 雨景无昼夜区分 | 独立 isNight 维度与昼夜雨景色板 | 日落边界单测；白天雨景实拍 |
+| 数据无密钥时退回模拟，无法自动反映真实天气 | 默认免密钥 Open-Meteo；和风缺凭据明确报错 | 原生联网成功；禁止自动演示回退测试 |
+| 切换城市后小时条目、逐日图标仍引用旧城市对象 | ForEach 键包含不可变数据快照内容；生活条目同样处理 | 先复现北京 19°C 但小时 28°C，再重新安装后切换，小时与图标随北京更新 |
+| 可选空气质量缺字段被转换为 0 或默认“优” | 完整性验证，缺失则显示暂不可用；标注 US AQI | 缺失/null/HTTP 失败单测及在线原生页面 |
+| 城市时刻依赖设备小时，跨日沿用昨天日落 | 使用 API UTC 偏移和对应日期的日出/日落 | 分钟边界、跨日与缓存恢复测试 |
 
-An earlier screenshot was reviewed, patched, rebuilt and captured again after
-each finding. Draft screenshots with transition artifacts are not deliverables.
+按 Product Design 的截图核对方式检查了层级、字距/留白、色彩、照片衔接和数据文案。
+当前测试范围内没有遗留的阻断性视觉问题；图库里的其他 13 座城市仍需逐屏取景优化。
 
-## Five fidelity surfaces
+## 代码与运行验证
 
-- **Typography:** native HarmonyOS font; thin 112sp temperature, 22sp weather
-  description and restrained secondary text. Larger readable type is an
-  intentional redesign, rather than matching the dense mock at every pixel.
-- **Spacing/layout:** 24vp body gutters; continuous scroll; hourly selected state;
-  shared-scale daily curves. Life illustrations and detailed metrics are below
-  the fold, not squeezed into the first screen. Compact warning now preserves
-  the skyline. City, settings and detail pages use the same dark surface system.
-- **Colors/tokens:** cool blue atmosphere, dark blue reading surfaces, warm highs
-  and cyan lows. Foreground text remains light for fog/rain as well as clear sky.
-  Selected settings controls and city borders have explicit contrasting states.
-- **Image quality:** bundled city photographs stay recognizable; moving cloud,
-  rain and wet-glass textures are separate from the photo. Three original life
-  illustrations have consistent lighting and material detail. Weather symbols
-  are unmodified MIT Meteocons SVG resources, with proper night variants.
-- **Copy/content:** Chinese renders correctly. Demo weather and background
-  preview are labeled separately. Preview changes only the background; it never
-  relabels fabricated weather as current observations. Other city cards show no
-  invented temperature. Detailed advice is available in dialogs.
+- `scripts/test-weather-state.cjs`：16 项真实模型/Service 测试，平台网络和存储为测试替身。
+  覆盖 UTF-8、稳定城市 ID、偏好存储失败、明确数据源、缓存分源、日出日落、当地时刻、
+  Open-Meteo 字段和单位映射、空气缺失以及清空内存后的离线持久缓存恢复。
+- SDK `6.1.1(24)` 的 Hvigor `assembleHap` 成功；未签名 HAP 安装并启动成功。
+  不包含正式签名证书。测试替身不等同于在线联调，在线成功另由模拟器截图确认。
+- 深圳 → 北京 → 深圳的当前温度、小时预报、逐日图标、城市照片切换；强制退出后选中城市保留。
+- 此轮检查在线空气质量、生活气象区域，以及源信息。生活提示是本地规则，未冒充官方指数。
+- 天气前台定时刷新与恢复页面时检查已实现；没有通过修改系统时钟伪造“真实夜景”。
 
-## Verified
+## 早一轮 UI 验证记录
 
-- Full Hvigor `assembleHap`: **passed**. Only expected unsigned-HAP warning.
-  The unsigned HAP installs and launches in the local HarmonyOS emulator.
-- `scripts/test-weather-state.cjs`: **7/7 passed**, testing the real transpiled
-  model/service code with platform storage/network mocked at the boundary.
-  Covers UTF-8, placeholder keys, no demo fallback for live failures, real-cache
-  identity/timestamps, stable-ID city persistence, storage failure and minute
-  precision at sunrise/sunset. This is not a real API integration test.
-- Native flows: city search for Beijing, switch Beijing/Shenzhen, empty search
-  with keyboard, settings navigation, Fahrenheit conversion and retention after
-  force-stop/relaunch, city retention, forecast details and expanded daily row.
-- Motion: app toggle off persists after restart; two rain-preview captures
-  about 2.4 seconds apart have identical SHA256 hashes. Toggle on resumes motion.
-  `redesign-rain-motion.gif` contains 18 actual native captures over ~14.5 seconds,
-  using measured capture intervals (see `motion-capture.json`). It is a low-frame-
-  rate evidence capture, not an app-frame-rate benchmark or seamless video.
-- Day, night and rainy background previews were rendered. Preview mode is
-  visibly labeled and exited through its control/back navigation.
-- Responsive smoke tests: 320vp parent width with 1.3× font, 360vp parent width
-  with normal font, plus the actual ~377vp device viewport. Parent-width QA
-  captures intentionally have unused space at the right; they are not device
-  screenshots of a 320px display. Daily/hourly strips scroll horizontally where
-  needed. The final compact-alert change was reviewed at the normal viewport.
-- Temporary font/width QA hooks were removed before the final build.
+`design/redesign-*.jpeg`、`redesign-overview.jpg` 与原参考对照保留作设计历史，
+其中天气为当时明确标注的演示数据，不代表当前默认数据源。早一轮完成：
 
-## Remaining validation / product work
+- 320vp 父容器 / 1.3× 字体、360vp 父容器、约 377vp 实际设备的 smoke test；不是 320px 真机截图。
+- 城市搜索、空结果与键盘、删除/重新添加、设置与预报详情、华氏温度及重启保持。
+- 关闭动画后两张雨景截图 SHA256 一致；打开后恢复。修复了 Canvas 黑字、城市缩略图裁切、
+  空搜索被键盘遮挡、预警过重和滚动内容覆盖状态栏。临时 QA 钩子已移除。
+- 新增时刻/数据源文案尚未在全部宽度与大字体模式重新扫一遍，不将旧检查冒充全量新回归。
 
-- 390/480vp, landscape, tablet, system screen reader, system-level reduced-motion
-  and prolonged on-device performance are **not verified**. Current motion toggle
-  is app-specific; it does not claim to follow the OS reduce-motion preference.
-- Live weather integration is **not verified**: no local key file is present and
-  the checked-in config contains a placeholder. Existing API plumbing is kept;
-  no credential was recovered, changed or committed during this redesign.
-- Location refusal UI, device-level offline recovery and automatic-refresh timing
-  still need end-to-end tests with real permissions/network/configuration. The
-  cache tests above cover service logic, not those device scenarios.
-- City management currently covers the existing 15-city catalog; worldwide search,
-  drag ordering, additional timezone handling and production signing remain out
-  of this UI pass. See `docs/ui-redesign-2026-09.md` for prioritized follow-up.
+## 未验收 / 后续边界
 
-final result: passed
+- 没有有效和风密钥：和风账户权限、15 日套餐、旧空气接口尚未重新联调。
+- Open-Meteo 是模型数据，不是中国气象站逐点实测；暂无官方预警接入，生活指数为本地提示。
+- 免费接口仅非商业用途且有额度/可用性限制；图片是场景化城市照片，不是实时摄像头。
+- 真机断网/恢复、定位拒绝、15/30/60 分钟完整计时、长时间后台切换、耗电与帧率仍需端到端验证。
+- 系统级减少动态效果、390/480vp、横屏、平板、读屏顺序和全尺寸大字体尚未完整测试。
+- 仍为 15 城市目录；全球搜索、拖动排序、极昼极夜、未来夏令时跨界和生产签名不在本轮验收内。
 
-Result applies only to the bounded native UI redesign and tested states above.
+final result: passed for the bounded online-provider and city-scene implementation above.

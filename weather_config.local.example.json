@@ -1,8 +1,8 @@
 {
   "provider": "qweather",
   "apiKey": "YOUR_QWEATHER_API_KEY",
-  "baseUrl": "https://devapi.qweather.com",
-  "geoUrl": "https://geoapi.qweather.com",
+  "baseUrl": "https://YOUR_API_HOST.qweatherapi.com",
+  "geoUrl": "https://YOUR_API_HOST.qweatherapi.com",
   "lang": "zh",
   "unit": "m",
   "defaultLocation": "101280601",

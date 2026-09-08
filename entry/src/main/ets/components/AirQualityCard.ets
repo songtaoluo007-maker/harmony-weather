@@ -20,8 +20,12 @@ export struct AirQualityCard {
       Row() {
         Text('空气质量').fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
         Blank()
-        Text('AQI').fontSize(11).fontColor(this.themeColors.textTertiary)
+        Text(this.air.standard).fontSize(11).fontColor(this.themeColors.textTertiary)
       }.width('100%')
+      if (!this.air.available) {
+        Text('空气质量暂不可用').fontSize(14).fontColor(this.themeColors.textSecondary)
+          .width('100%').padding({ top: 12, bottom: 12 })
+      } else {
       Row({ space: 16 }) {
         Row({ space: 9 }) {
           Text(`${this.air.aqi}`).fontSize(38).fontWeight(300).fontColor(this.themeColors.textColor)
@@ -44,14 +48,15 @@ export struct AirQualityCard {
         Blank()
         Text(`PM10  ${this.air.pm10} μg/m³`).fontSize(11).fontColor(this.themeColors.textTertiary)
       }.width('100%')
+      }
     }
     .width('100%').padding({ top: 22, bottom: 22 })
     .border({ width: { bottom: 0.5 }, color: this.themeColors.divider })
     .onClick(() => this.getUIContext().showAlertDialog({
-      title: `空气质量 · ${this.air.level}`,
-      message: `${this.air.advice}\n\nPM2.5：${this.air.pm25} μg/m³\nPM10：${this.air.pm10} μg/m³\n二氧化氮：${this.air.no2} μg/m³\n臭氧：${this.air.o3} μg/m³`,
+      title: this.air.available ? `空气质量 · ${this.air.level}` : '空气质量暂不可用',
+      message: this.air.available ? `${this.air.standard} · ${this.air.advice}\n\nPM2.5：${this.air.pm25} μg/m³\nPM10：${this.air.pm10} μg/m³\n二氧化氮：${this.air.no2} μg/m³\n臭氧：${this.air.o3} μg/m³` : '天气服务暂未返回空气质量，没有使用模拟数值替代。',
       confirm: { value: '知道了', action: () => {} }
     }))
-    .accessibilityText(`空气质量指数${this.air.aqi}，${this.air.level}，点击查看污染物详情`)
+    .accessibilityText(this.air.available ? `${this.air.standard} 空气质量指数${this.air.aqi}，${this.air.level}，点击查看污染物详情` : '空气质量暂不可用')
   }
 }

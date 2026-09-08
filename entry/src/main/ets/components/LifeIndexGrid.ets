@@ -49,7 +49,7 @@ export struct LifeIndexGrid {
           .backgroundColor('#142B3D').borderRadius(20).clip(true)
           .onClick(() => this.showDetail(item))
           .accessibilityText(`${item.name}，${item.brief}，点击查看建议`)
-        }, (item: LifeIndex) => item.iconKey)
+        }, (item: LifeIndex) => JSON.stringify(item))
       }.width('100%').alignItems(VerticalAlign.Top)
       Flex({ wrap: FlexWrap.Wrap }) {
         ForEach(this.remaining(), (item: LifeIndex) => {
@@ -63,7 +63,7 @@ export struct LifeIndexGrid {
           .width('50%').constraintSize({ minHeight: 64 })
           .onClick(() => this.showDetail(item))
           .accessibilityText(`${item.name}，${item.brief}，点击查看建议`)
-        }, (item: LifeIndex) => item.iconKey)
+        }, (item: LifeIndex) => JSON.stringify(item))
       }.width('100%')
     }
     .width('100%').padding({ top: 24, bottom: 16 })

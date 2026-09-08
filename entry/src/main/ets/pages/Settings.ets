@@ -9,6 +9,7 @@ struct SettingsPage {
   @State motionEnabled: boolean = true
   @State refreshMinutes: number = 30
   @State configured: boolean = false
+  @State provider: string = 'mock'
   private service: WeatherService = WeatherService.getInstance()
 
   async aboutToAppear(): Promise<void> {
@@ -16,6 +17,7 @@ struct SettingsPage {
     await this.service.initialize(context)
     this.restoreSettings()
     this.configured = this.service.hasLiveConfiguration()
+    this.provider = this.service.getProvider()
   }
 
   private restoreSettings(): void {
@@ -78,8 +80,10 @@ struct SettingsPage {
             Flex({ wrap: FlexWrap.Wrap }) {
               this.previewButton('晴昼', 'clear_day', $r('app.media.weather_sunny'))
               this.previewButton('晴夜', 'clear_night', $r('app.media.weather_night'))
-              this.previewButton('雨天', 'rain', $r('app.media.weather_rainy'))
+              this.previewButton('白天雨', 'rain_day', $r('app.media.weather_rainy'))
+              this.previewButton('夜间雨', 'rain_night', $r('app.media.weather_rainy'))
               this.previewButton('雾天', 'haze', $r('app.media.weather_fog'))
+              this.previewButton('雪天', 'snow', $r('app.media.weather_snowy'))
             }.width('100%')
             Text('仅预览背景，不改变天气数据。').fontSize(11).fontColor(T.muted).alignSelf(ItemAlign.Start)
           }.width('100%').padding(20).backgroundColor(T.surface).borderRadius(T.radius)
@@ -97,11 +101,11 @@ struct SettingsPage {
 
           Column({ space: 12 }) {
             this.sectionTitle($r('app.media.information_outline'), '天气数据')
-            Text(this.configured ? '和风天气服务已配置' : '当前为演示模式')
+            Text(this.provider === 'openmeteo' ? 'Open-Meteo · 免费在线天气' : this.configured ? '和风天气服务已配置' : this.provider === 'mock' ? '当前为演示模式' : '和风配置不完整')
               .fontSize(14).fontColor(this.configured ? T.accent : '#EAD08A').alignSelf(ItemAlign.Start)
-            Text(this.configured ?
-              '更新失败时会标记离线数据。预报时长与可用指标取决于天气服务。' :
-              '示例天气用于体验界面，不代表当地实况。配置天气服务后可获取真实天气。')
+            Text(this.provider === 'openmeteo' ? '无需密钥，适用于非商业用途。天气和当地昼夜自动驱动背景；更新失败仅使用同来源历史缓存。' : this.configured ?
+              '更新失败时会标记离线数据。预报时长与可用指标取决于天气服务。' : this.provider === 'mock' ?
+              '示例天气用于体验界面，不代表当地实况。' : '请配置和风 API Key 与专属 API Host，或将 provider 改为 openmeteo。不会自动使用模拟数据。')
               .fontSize(12).fontColor(T.muted).lineHeight(20)
           }.width('100%').padding(20).backgroundColor(T.surface).borderRadius(T.radius)
 
@@ -136,7 +140,7 @@ struct SettingsPage {
         Image(icon).width(22).height(22).fillColor(T.accent)
         Text(label).fontSize(12).fontColor(T.text)
       }.padding({ top: 12, bottom: 12 })
-    }.width('25%').backgroundColor(Color.Transparent).borderRadius(12)
+    }.width('33.33%').backgroundColor(Color.Transparent).borderRadius(12)
       .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/Index', params: { previewWeather: value } }))
       .accessibilityText(`预览${label}背景`)
   }

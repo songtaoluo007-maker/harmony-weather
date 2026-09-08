@@ -7,6 +7,7 @@ export struct HourlyCapsules {
   @Prop @Watch('resetSelection') hourly: HourlyWeather[] = []
   @Prop themeColors: ThemeColors = new ThemeColors()
   @Prop unit: string = 'c'
+  @Prop currentNight: boolean = false
   @State selectedIndex: number = 0
 
   private resetSelection(): void { this.selectedIndex = 0 }
@@ -17,7 +18,7 @@ export struct HourlyCapsules {
 
   private summary(): string {
     const item: HourlyWeather | undefined = this.hourly[this.selectedIndex]
-    return item ? `${item.text} · 降水 ${item.pop}%` : '暂无小时预报'
+    return item ? `${item.text} · ${item.pop >= 0 ? `降水 ${item.pop}%` : '降水概率暂无'}` : '暂无小时预报'
   }
 
   build() {
@@ -37,7 +38,7 @@ export struct HourlyCapsules {
               Text(item.time).fontSize(11)
                 .fontColor(index === this.selectedIndex ? '#FFFFFF' : this.themeColors.textSecondary).maxLines(1)
               WeatherIcon({ text: item.text, iconSize: 25, fallbackColor: this.themeColors.textColor,
-                isNight: this.isNightHour(item.time) })
+                isNight: item.timestamp > 0 ? !item.isDay : this.isNightHour(item.time) })
               Text(`${this.temperature(item.temp)}°`)
                 .fontSize(17).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
             }
@@ -45,8 +46,8 @@ export struct HourlyCapsules {
             .backgroundColor(index === this.selectedIndex ? 'rgba(255,255,255,0.11)' : Color.Transparent)
             .border({ width: 0.6, color: index === this.selectedIndex ? 'rgba(255,255,255,0.20)' : Color.Transparent })
             .onClick(() => { this.selectedIndex = index })
-            .accessibilityText(`${item.time}，${item.text}，${this.temperature(item.temp)}度，降水概率${item.pop}%，${index === this.selectedIndex ? '已选中' : '点击查看'}`)
-          }, (item: HourlyWeather, index: number) => `${index}_${item.time}`)
+            .accessibilityText(`${item.time}，${item.text}，${this.temperature(item.temp)}度，${item.pop >= 0 ? `降水概率${item.pop}%` : '降水概率暂无'}，${index === this.selectedIndex ? '已选中' : '点击查看'}`)
+          }, (item: HourlyWeather, index: number) => `${index}_${JSON.stringify(item)}`)
         }
       }
       .width('100%').scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
@@ -56,7 +57,8 @@ export struct HourlyCapsules {
   }
 
   private isNightHour(time: string): boolean {
-    const hour: number = time === '现在' ? new Date().getHours() : Number.parseInt(time)
+    if (time === '现在') return this.currentNight
+    const hour: number = Number.parseInt(time)
     return hour >= 19 || hour < 6
   }
 }

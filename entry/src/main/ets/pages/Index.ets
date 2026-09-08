@@ -7,6 +7,7 @@ import {
 } from '../models/WeatherModels'
 import { ThemeColors, WeatherTheme } from '../theme/WeatherTheme'
 import { BundledCityBackground, BundledCityBackgrounds } from '../theme/BundledCityBackgrounds'
+import { NightCityBackgrounds } from '../theme/NightCityBackgrounds'
 import { AppSettings, WeatherService } from '../services/WeatherService'
 import { CityBackground, CityBackgroundService } from '../services/CityBackgroundService'
 import { DynamicWeatherBackground } from '../components/BreathingBackground'
@@ -38,13 +39,19 @@ struct Index {
   private loading: boolean = false
   private scroller: Scroller = new Scroller()
   @State currentHour: number = new Date().getHours()
+  @State isNight: boolean = false
+  @State nightPhoto: boolean = false
+  @State cityImageAspect: number = 1.5
   @State cityBackgroundResource: Resource = $r('app.media.weather_bg_day')
   @State hasBundledCityBackground: boolean = false
   @State cityBackgroundUrl: string = ''
   @State cityBackgroundAttribution: string = ''
+  @State citySourceUrl: string = ''
+  @State cityLicenseUrl: string = ''
   private service: WeatherService = WeatherService.getInstance()
   private backgroundService: CityBackgroundService = CityBackgroundService.getInstance()
   private loadedCityId: string = ''
+  private backgroundKey: string = ''
   private timeTimerId: number = -1
 
   async aboutToAppear(): Promise<void> {
@@ -72,6 +79,10 @@ struct Index {
     this.unit = settings.unit
     const selectedId: string = this.service.getCurrentCity().id
     if (this.loadedCityId && selectedId !== this.loadedCityId) await this.loadData(true)
+    else if (this.weatherData.lastUpdate > 0) {
+      this.updateScene()
+      if (Date.now() - this.weatherData.lastUpdate > settings.refreshMinutes * 60000) await this.loadData(true)
+    }
   }
 
   private async loadData(forceRefresh: boolean): Promise<void> {
@@ -89,15 +100,7 @@ struct Index {
       const data: WeatherData = await this.service.loadWeather(context, undefined, forceRefresh)
       if (version !== this.requestVersion) return
       this.weatherData = data
-      this.currentHour = new Date().getHours() + new Date().getMinutes() / 60
-      this.visualState = WeatherData.resolveVisualState(
-        data.current.text,
-        this.currentHour,
-        data.current.sunrise,
-        data.current.sunset
-      )
-      this.themeColors = WeatherTheme.getColors(this.visualState)
-      this.applyPreview()
+      this.updateScene(false)
       this.uiState = WeatherUiState.ready(data)
       if (this.loadedCityId !== data.cityId) {
         this.hasBundledCityBackground = false
@@ -122,17 +125,33 @@ struct Index {
     cityId: string
   ): Promise<void> {
     const city = this.service.getCityList().find(item => item.id === cityId) ?? this.service.getCurrentCity()
-    const bundled: BundledCityBackground | null = BundledCityBackgrounds.resolve(cityId)
+    const key: string = `${cityId}_${this.isNight}`
+    if (this.backgroundKey === key) return
+    this.backgroundKey = key
+    this.citySourceUrl = ''
+    this.cityLicenseUrl = ''
+    const bundled: BundledCityBackground | null = this.isNight ? NightCityBackgrounds.resolve(cityId) : BundledCityBackgrounds.resolve(cityId)
     if (bundled) {
       if (this.weatherData.cityId !== cityId) return
       this.cityBackgroundResource = bundled.resource
       this.hasBundledCityBackground = true
       this.cityBackgroundUrl = ''
       this.cityBackgroundAttribution = bundled.attribution
+      this.nightPhoto = bundled.isNightPhoto
+      this.cityImageAspect = bundled.aspectRatio
+      this.citySourceUrl = bundled.sourceUrl
+      this.cityLicenseUrl = bundled.licenseUrl
+      return
+    }
+    this.nightPhoto = false
+    if (this.isNight) {
+      this.hasBundledCityBackground = false
+      this.cityBackgroundUrl = ''
+      this.cityBackgroundAttribution = '通用夜空 · 暂无该城市夜景资源'
       return
     }
     const result: CityBackground = await this.backgroundService.resolve(context, city)
-    if (this.weatherData.cityId !== cityId) return
+    if (this.weatherData.cityId !== cityId || this.backgroundKey !== key) return
     this.hasBundledCityBackground = false
     this.cityBackgroundUrl = result.imageUrl
     this.cityBackgroundAttribution = result.attribution
@@ -150,32 +169,19 @@ struct Index {
       if (!this.loading && Date.now() - this.weatherData.lastUpdate > settings.refreshMinutes * 60000) {
         this.loadData(true)
       }
-      const hour: number = new Date().getHours() + new Date().getMinutes() / 60
-      if (hour !== this.currentHour) {
-        this.currentHour = hour
-        this.visualState = WeatherData.resolveVisualState(
-          this.weatherData.current.text,
-          hour,
-          this.weatherData.current.sunrise,
-          this.weatherData.current.sunset
-        )
-        this.themeColors = WeatherTheme.getColors(this.visualState)
-        this.applyPreview()
-      }
+      this.updateScene()
     }, 60000)
   }
 
   private dateText(): string {
-    const now: Date = new Date()
+    const now: Date = WeatherData.localDate(Date.now(), this.weatherData.utcOffsetSeconds)
     const weeks: string[] = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-    return `${now.getMonth() + 1}月${now.getDate()}日 ${weeks[now.getDay()]}`
+    return `${now.getUTCMonth() + 1}月${now.getUTCDate()}日 ${weeks[now.getUTCDay()]} · ${WeatherData.localTime(Date.now(), this.weatherData.utcOffsetSeconds)}`
   }
 
   private updateText(): string {
     if (!this.weatherData.lastUpdate) return ''
-    const date: Date = new Date(this.weatherData.lastUpdate)
-    const minute: string = date.getMinutes().toString().padStart(2, '0')
-    return `${date.getHours()}:${minute} 更新`
+    return `${WeatherData.localTime(this.weatherData.observedAt || this.weatherData.lastUpdate, this.weatherData.utcOffsetSeconds)} 数据 · ${WeatherData.localTime(this.weatherData.lastUpdate, this.weatherData.utcOffsetSeconds)} 获取`
   }
 
 
@@ -183,22 +189,35 @@ struct Index {
     if (this.weatherData.source === 'mock') return '演示天气'
     if (this.weatherData.isOffline) return '离线缓存'
     if (this.weatherData.source === 'qweather') return '和风天气'
+    if (this.weatherData.source === 'openmeteo') return '在线天气'
     return '历史数据'
   }
 
-  private applyPreview(): void {
-    if (!this.previewWeather) return
-    if (this.previewWeather === 'clear_day') { this.visualState = WeatherVisualState.CLEAR_DAY; this.currentHour = 12 }
-    if (this.previewWeather === 'clear_night') { this.visualState = WeatherVisualState.CLEAR_NIGHT; this.currentHour = 22 }
-    if (this.previewWeather === 'rain') this.visualState = WeatherVisualState.RAIN
-    if (this.previewWeather === 'haze') this.visualState = WeatherVisualState.HAZE
-    this.themeColors = WeatherTheme.getColors(this.visualState)
+  private updateScene(updateBackground: boolean = true): void {
+    const scene = WeatherData.sceneAt(this.weatherData)
+    this.currentHour = scene.hour
+    this.isNight = scene.isNight
+    this.visualState = scene.visualState
+    if (this.previewWeather) {
+      this.isNight = this.previewWeather.includes('night')
+      this.currentHour = this.isNight ? 22 : 12
+      if (this.previewWeather === 'clear_day') this.visualState = WeatherVisualState.CLEAR_DAY
+      if (this.previewWeather === 'clear_night') this.visualState = WeatherVisualState.CLEAR_NIGHT
+      if (this.previewWeather.includes('rain')) this.visualState = WeatherVisualState.RAIN
+      if (this.previewWeather === 'haze') this.visualState = WeatherVisualState.HAZE
+      if (this.previewWeather === 'snow') this.visualState = WeatherVisualState.SNOW
+    }
+    this.themeColors = WeatherTheme.getColors(this.visualState, this.isNight)
+    if (updateBackground) {
+      const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
+      this.updateCityBackground(context, this.weatherData.cityId)
+    }
   }
 
   private sourceDetail(): string {
     if (this.weatherData.source === 'mock') return '当前展示示例天气，非当地实况。'
     if (this.weatherData.isOffline) return '暂时无法更新，显示上次保存的天气。'
-    return this.updateText()
+    return this.weatherData.source === 'openmeteo' ? `${this.updateText()}\nOpen-Meteo 在线气象模型数据，非逐站实测。城市背景为场景化照片，不是实时摄像头。` : this.updateText()
   }
 
   build() {
@@ -252,6 +271,7 @@ struct Index {
         Stack({ alignContent: Alignment.Top }) {
           DynamicWeatherBackground({
             visualState: this.visualState, hour: this.currentHour,
+            isNight: this.isNight, nightPhoto: this.nightPhoto, cityImageAspect: this.cityImageAspect,
             motionEnabled: this.motionEnabled, active: this.pageActive && this.sceneVisible,
             themeColors: this.themeColors, cityBackgroundResource: this.cityBackgroundResource,
             hasBundledCityBackground: this.hasBundledCityBackground, cityBackgroundUrl: this.cityBackgroundUrl
@@ -278,7 +298,8 @@ struct Index {
             }
             Column().height(56).width('100%').accessibilityLevel('no')
             Column() {
-              HourlyCapsules({ hourly: this.weatherData.hourly, themeColors: this.themeColors, unit: this.unit })
+              HourlyCapsules({ hourly: this.weatherData.hourly, themeColors: this.themeColors, unit: this.unit,
+                currentNight: this.isNight })
               WeeklyForecast({ daily: this.weatherData.daily, themeColors: this.themeColors, unit: this.unit })
               AirQualityCard({ air: this.weatherData.air, current: this.weatherData.current,
                 unit: this.unit, themeColors: this.themeColors })
@@ -288,11 +309,17 @@ struct Index {
               DataGrid({ current: this.weatherData.current, themeColors: this.themeColors, unit: this.unit })
               Column({ space: 6 }) {
                 Text(this.sourceDetail()).fontSize(11).fontColor(this.themeColors.textSecondary)
-                Text(this.weatherData.source === 'qweather' ? '天气数据由和风天气提供' : this.sourceLabel())
+                Text(this.weatherData.source === 'qweather' ? '天气数据由和风天气提供' : this.weatherData.source === 'openmeteo' ? 'Open-Meteo · CAMS · CC BY 4.0' : this.sourceLabel())
                   .fontSize(10).fontColor(this.themeColors.textTertiary)
+                if (this.weatherData.source === 'openmeteo') {
+                  Hyperlink('https://open-meteo.com/', '数据来源与授权').color('#AADCE9')
+                  Text('生活提示由本地规则生成，并非官方生活指数。').fontSize(10).fontColor(this.themeColors.textTertiary)
+                }
                 if (this.cityBackgroundAttribution) {
                   Text(this.cityBackgroundAttribution).fontSize(10).fontColor(this.themeColors.textTertiary)
                     .textAlign(TextAlign.Center)
+                  if (this.citySourceUrl) Hyperlink(this.citySourceUrl, '城市照片来源').color('#AADCE9')
+                  if (this.cityLicenseUrl) Hyperlink(this.cityLicenseUrl, '照片使用许可').color('#AADCE9')
                 }
               }.width('100%').margin({ top: 28, bottom: 44 })
             }
