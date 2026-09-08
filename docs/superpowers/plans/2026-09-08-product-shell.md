@@ -58,4 +58,4 @@ Files: modify `resources/base/profile/main_pages.json`, README/QA/PR docs; add a
 - [x] Register routes; run all three Node suites (52 tests) and complete unsigned Hvigor build.
 - [x] Test home→news→article→news→settings→about/privacy→home, repeated switching, city change, clear/cache recovery, live scene motion, and readable native layouts (actual ~377vp and 320vp parent for new roots).
 - [x] Inspect staged diff for credentials/accidental removals; record actual test gaps (commercial authorization, full device matrix, publisher availability).
-- [ ] Commit/push scoped changes and update PR #1; verify remote OID and clean working tree.
+- [x] Commit/push scoped changes and update PR #1; verify remote OID and clean working tree. Implementation commit `3ed4c54bcf563e000d601777e97745b09d8c4c57` was confirmed on the open draft PR; this record follows in a documentation-only commit.
