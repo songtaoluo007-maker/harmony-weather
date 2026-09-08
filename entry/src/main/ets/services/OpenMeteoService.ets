@@ -32,7 +32,7 @@ interface MeteoDaily {
   temperature_2m_min: (number | null)[]
   sunrise: number[]
   sunset: number[]
-  uv_index_max: number[]
+  uv_index_max?: (number | null)[]
   precipitation_probability_max: (number | null)[]
   wind_speed_10m_max: number[]
   wind_direction_10m_dominant: number[]
@@ -147,20 +147,25 @@ export class OpenMeteoService {
       day.sunsetAt = days.sunset[i] * 1000
       this.summarizeNight(day, hours, days.sunrise[i + 1] * 1000, data.utcOffsetSeconds)
       day.pop = days.precipitation_probability_max[i] ?? -1
-      day.uvIndex = days.uv_index_max[i]
+      const uv: number | null | undefined = days.uv_index_max?.[i]
+      day.uvIndex = typeof uv === 'number' && Number.isFinite(uv) && uv >= 0 ? uv : -1
       day.windDir = OpenMeteoService.windDirection(days.wind_direction_10m_dominant[i])
       day.windScale = OpenMeteoService.windScale(days.wind_speed_10m_max[i])
       const humidity: number[] = hours.relative_humidity_2m.slice(i * 24, (i + 1) * 24).filter((v: number) => Number.isFinite(v))
       day.humidity = humidity.length ? Math.round(humidity.reduce((sum: number, value: number) => sum + value, 0) / humidity.length) : -1
       data.daily.push(day)
     }
-    const today: DailyWeather | undefined = data.daily[0]
+    const localToday: string = WeatherData.localDate(data.observedAt, data.utcOffsetSeconds).toISOString().substring(0, 10)
+    const today: DailyWeather | undefined = data.daily.find((day: DailyWeather) => day.date === localToday)
     if (today) {
       data.current.high = today.high
       data.current.low = today.low
       data.current.sunrise = WeatherData.localTime(today.sunriseAt, data.utcOffsetSeconds)
       data.current.sunset = WeatherData.localTime(today.sunsetAt, data.utcOffsetSeconds)
-      data.current.uv = today.uvIndex <= 2 ? '弱' : today.uvIndex <= 5 ? '中等' : today.uvIndex <= 7 ? '较强' : '很强'
+      if (today.uvIndex >= 0) {
+        data.current.uv = today.uvIndex <= 2 ? '弱' : today.uvIndex <= 5 ? '中等' : today.uvIndex <= 7 ? '较强' : today.uvIndex <= 10 ? '很强' : '极强'
+        data.current.uvScope = 'daily_max'
+      }
     }
     return data
   }
@@ -187,6 +192,7 @@ export class OpenMeteoService {
 
   private parseAir(now: MeteoAirCurrent): AirQuality {
     const air: AirQuality = new AirQuality()
+    air.available = true
     air.standard = 'US AQI'
     air.aqi = Math.round(now.us_aqi ?? 0)
     air.level = air.aqi <= 50 ? '优' : air.aqi <= 100 ? '中等' : air.aqi <= 150 ? '敏感人群注意' : air.aqi <= 200 ? '不健康' : air.aqi <= 300 ? '很不健康' : '危险'

@@ -16,6 +16,10 @@ function deferred() {
 }
 
 function fixture(provider = 'qweather') {
+  let clockNow;
+  class FixtureDate extends Date {
+    static now() { return clockNow ?? Date.now(); }
+  }
   const stores = new Map();
   let failing = false;
   let nextCacheFlush = null;
@@ -58,7 +62,7 @@ function fixture(provider = 'qweather') {
       throw new Error('Unexpected import: ' + name);
     };
     vm.runInNewContext(code, { module, exports: module.exports, require: platformRequire,
-      console: quietConsole, TextDecoder, Date, Map, setTimeout, clearTimeout, $r: name => name }, { filename });
+      console: quietConsole, TextDecoder, Date: FixtureDate, Map, setTimeout, clearTimeout, $r: name => name }, { filename });
     return module.exports;
   }
   modules.models = load('models/WeatherModels');
@@ -76,7 +80,7 @@ function fixture(provider = 'qweather') {
     }
     return new Uint8Array(content);
   } } };
-  return { service, AppSettings, context, models: modules.models, stores,
+  return { service, AppSettings, context, models: modules.models, stores, setNow: value => { clockNow = value; },
     OpenMeteoService: modules.openMeteo.OpenMeteoService, theme: load('theme/WeatherTheme').WeatherTheme,
     presentation: presentation.WeatherPresentation, snow: snow.SnowField,
     failStorage: () => { failing = true; },
@@ -637,4 +641,344 @@ test('a waiting load also waits for a second clear appended to the cache queue',
   const data = await loading;
   assert.equal(f.service.peekLatestData(), data);
   assert.equal(weatherDetails(f).data.source, 'openmeteo');
+});
+
+function adviceWeather(f, standard = 'US AQI', aqi = 32) {
+  const data = liveWeather(f, 22);
+  data.current.feelsLike = 22;
+  data.air.available = true; data.air.standard = standard; data.air.aqi = aqi;
+  return data;
+}
+
+const lifeRow = (data, name) => data.lifeIndex.find(item => item.name === name);
+
+test('exercise uses actual AQI and its declared standard, including the unhealthy 160 regression', async () => {
+  const f = fixture('openmeteo');
+  for (const standard of ['US AQI', 'CN AQI']) {
+    for (const [aqi, brief] of [[160, '室内为宜'], [0, '较适宜'], [50, '较适宜'], [51, '适度活动'], [100, '适度活动'],
+      [101, '减少户外'], [150, '减少户外'], [151, '室内为宜'], [160, '室内为宜'], [200, '室内为宜'], [301, '室内为宜']]) {
+      f.OpenMeteoService.prototype.fetch = async () => adviceWeather(f, standard, aqi);
+      const data = await f.service.loadWeather(f.context, undefined, true);
+      const sport = lifeRow(data, '运动');
+      assert.equal(sport.brief, brief, `${standard} ${aqi}`);
+      assert.ok(sport.detail.includes(standard), 'do not silently convert AQI standards');
+      assert.ok(sport.detail.includes(String(aqi)));
+      assert.equal(sport.source, 'local', 'derived advice is not a provider index');
+    }
+  }
+});
+
+test('exercise cannot claim suitability for missing air, unknown standards or invalid AQI', async () => {
+  const f = fixture('openmeteo');
+  const variants = [undefined, { available: false, standard: 'US AQI', aqi: 32 },
+    { available: true, standard: '', aqi: 32 }, { available: true, standard: 'European AQI', aqi: 32 },
+    ...[undefined, null, '', '32', NaN, Infinity, -1].map(aqi => ({ available: true, standard: 'US AQI', aqi }))];
+  for (const air of variants) {
+    f.OpenMeteoService.prototype.fetch = async () => {
+      const data = adviceWeather(f); data.air = air; return data;
+    };
+    const data = await f.service.loadWeather(f.context, undefined, true);
+    assert.equal(lifeRow(data, '运动').brief, '资料不足', JSON.stringify(air));
+  }
+});
+
+test('exercise considers adverse weather and temperature even when precipitation is zero', async () => {
+  const f = fixture('openmeteo');
+  for (const current of [{ text: '雷阵雨' }, { text: '雪' }, { text: '雾' }, { text: '沙尘暴' },
+    { text: '小雨' }, { precip: 0.1 }, { temp: 35 }, { feelsLike: 35 }, { temp: 0 }, { feelsLike: 0 }, { windSpeed: 40 }]) {
+    f.OpenMeteoService.prototype.fetch = async () => {
+      const data = adviceWeather(f); Object.assign(data.current, current); return data;
+    };
+    const data = await f.service.loadWeather(f.context, undefined, true);
+    assert.equal(lifeRow(data, '运动').brief, '室内为宜', JSON.stringify(current));
+  }
+});
+
+test('unknown weather inputs cannot become confident local exercise advice', async () => {
+  const f = fixture('openmeteo');
+  for (const current of [{ text: '未知' }, { text: '' }, { temp: NaN }, { feelsLike: NaN }, { precip: -1 }, { windSpeed: NaN }]) {
+    f.OpenMeteoService.prototype.fetch = async () => {
+      const data = adviceWeather(f); Object.assign(data.current, current); return data;
+    };
+    const data = await f.service.loadWeather(f.context, undefined, true);
+    assert.equal(lifeRow(data, '运动').brief, '资料不足');
+  }
+});
+
+test('legacy generated advice is recomputed for memory hits and offline restoration without refreshing observations', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  const old = adviceWeather(f, 'US AQI', 160);
+  old.lifeIndex = [{ name: '运动', iconKey: 'sport', brief: '较适宜', detail: '结合空气质量选择运动强度' }];
+  f.service.cache.set(old.cityId, old);
+  const memory = await f.service.loadWeather(f.context);
+  assert.equal(lifeRow(memory, '运动').brief, '室内为宜');
+  assert.equal(memory.lastUpdate, old.lastUpdate);
+  lifeRow(old, '运动').brief = '较适宜';
+  await f.service.savePersistentCache(f.context, old);
+  f.service.cache.clear();
+  f.OpenMeteoService.prototype.fetch = async () => { throw new Error('offline'); };
+  const restored = await f.service.loadWeather(f.context, undefined, true);
+  assert.equal(lifeRow(restored, '运动').brief, '室内为宜');
+  assert.equal(restored.lastUpdate, old.lastUpdate);
+  assert.equal(restored.isOffline, true);
+});
+
+test('cache air parsing requires finite actual AQI and never assumes CN for an unknown source', () => {
+  const f = fixture();
+  for (const air of [undefined, {}, { available: true }, ...[null, '', 'bad', -1, Infinity].map(aqi => ({ aqi }))]) {
+    const data = f.models.WeatherData.fromMock({ source: 'qweather', air });
+    assert.equal(data.air.available, false, JSON.stringify(air));
+  }
+  assert.equal(f.models.WeatherData.fromMock({ source: 'other', air: { aqi: 32 } }).air.standard, '');
+  assert.equal(f.models.WeatherData.fromMock({ source: 'qweather', air: { aqi: '32' } }).air.standard, 'CN AQI');
+  assert.equal(f.models.WeatherData.fromMock({ source: 'openmeteo', air: { aqi: 32 } }).air.standard, 'US AQI');
+  assert.equal(f.models.WeatherData.fromMock({ source: 'openmeteo', air: { aqi: 32, standard: 'other' } }).air.standard, 'other');
+});
+
+test('provider indices retain their text and provenance across live and cache paths unless exercise conflicts', async () => {
+  const f = fixture('qweather'); await f.service.initialize(f.context);
+  f.service.config.apiKey = 'test-only-configured-key';
+  const data = adviceWeather(f, 'CN AQI'); data.source = 'qweather';
+  data.lifeIndex = [
+    { name: '运动', iconKey: 'sport', brief: '适宜', detail: '供应商运动预报', source: 'qweather', caption: '今日预报' },
+    { name: '穿衣', iconKey: 'clothing', brief: '炎热', detail: '供应商穿衣预报', source: 'qweather', caption: '今日预报' },
+    { name: '钓鱼', iconKey: 'info', brief: '不宜', detail: '供应商钓鱼预报', source: 'qweather', caption: '' }
+  ];
+  const original = JSON.parse(JSON.stringify(data.lifeIndex));
+  f.service.fetchFromAPI = async () => data;
+  await f.service.loadWeather(f.context, undefined, true);
+  const cached = await f.service.readPersistentCache(f.context, data.cityId);
+  for (const item of original) assert.deepEqual(JSON.parse(JSON.stringify(lifeRow(cached, item.name))), item);
+  data.air.aqi = 160;
+  const guarded = await f.service.loadWeather(f.context, undefined, true);
+  assert.equal(lifeRow(guarded, '运动').brief, '室内为宜');
+  assert.equal(lifeRow(guarded, '运动').source, 'local', 'guard must not be attributed to QWeather');
+  assert.equal(lifeRow(guarded, '穿衣').detail, '供应商穿衣预报');
+});
+
+test('legacy QWeather provider text is not blindly discarded and unavailable air guards positive indices', async () => {
+  const f = fixture('qweather'); await f.service.initialize(f.context);
+  const data = adviceWeather(f, 'CN AQI'); data.source = 'qweather'; data.air.available = false;
+  data.lifeIndex = [
+    { name: '运动', iconKey: 'sport', brief: '适宜', detail: '推荐户外运动' },
+    { name: '穿衣', iconKey: 'clothing', brief: '炎热', detail: '天气炎热，推荐轻薄衣物' }
+  ];
+  await f.service.savePersistentCache(f.context, data);
+  const cached = await f.service.readPersistentCache(f.context, data.cityId);
+  assert.equal(lifeRow(cached, '运动').brief, '资料不足');
+  assert.equal(lifeRow(cached, '穿衣').detail, data.lifeIndex[1].detail);
+  assert.equal(lifeRow(cached, '穿衣').source, '', 'unknown provenance must not be invented');
+});
+
+function qweatherHttp(air = { code: '200', now: { aqi: '160', category: '中度污染', pm2p5: '80', pm10: '90', no2: '20', so2: '3', co: '0.2', o3: '40' } }, uv = '8') {
+  return async url => {
+    if (url.includes('/air/')) return air;
+    if (url.includes('/15d')) return { code: '200', daily: [{ fxDate: '2026-09-08', tempMax: '25', tempMin: '20',
+      sunrise: '06:00', sunset: '18:00', textDay: '晴', textNight: '晴', windDirDay: '北风', windScaleDay: '1', humidity: '50', precip: '0', uvIndex: uv }] };
+    if (url.includes('/24h')) return { code: '200', hourly: [] };
+    return { code: '200', now: { temp: '22', feelsLike: '22', text: '晴', windDir: '北风', windScale: '1', windSpeed: '5', humidity: '50', precip: '0', pressure: '1010', vis: '10', cloud: '0' } };
+  };
+}
+
+test('real QWeather parsing feeds AQI into advice and handles unavailable or malformed air', async () => {
+  const f = fixture('qweather'); await f.service.initialize(f.context);
+  f.service.httpGet = qweatherHttp();
+  const real = await f.service.fetchFromAPI(new f.models.CityInfo());
+  assert.equal(lifeRow(real, '运动').brief, '室内为宜');
+  for (const air of [{ code: '503' }, { code: '200', now: {} },
+    ...[undefined, null, '', 'bad', '-1', 'Infinity'].map(aqi => ({ code: '200', now: { aqi } }))]) {
+    f.service.httpGet = qweatherHttp(air);
+    const missing = await f.service.fetchFromAPI(new f.models.CityInfo());
+    assert.equal(missing.air.available, false);
+    assert.equal(lifeRow(missing, '运动').brief, '资料不足');
+  }
+});
+
+test('Open-Meteo UV life tile is a daily peak even at night and retains its name and cache scope', async () => {
+  const f = fixture('openmeteo');
+  f.setNow(Date.parse('2026-09-08T11:00:00Z'));
+  f.OpenMeteoService.prototype.httpGet = async url => {
+    if (url.includes('air-quality')) throw new Error('offline');
+    return meteoPayload();
+  };
+  const data = await f.service.loadWeather(f.context);
+  assert.equal(data.current.uvScope, 'daily_max');
+  assert.equal(data.current.uv, '很强', 'night does not zero a daily peak');
+  assert.equal(lifeRow(data, '紫外线').caption, '今日峰值');
+  const cached = f.models.WeatherData.fromMock(JSON.parse(JSON.stringify(data)));
+  assert.equal(cached.current.uvScope, 'daily_max');
+  assert.equal(lifeRow(cached, '紫外线').caption, '今日峰值');
+  assert.equal(lifeRow(cached, '紫外线').source, 'local');
+});
+
+test('missing or invalid Open-Meteo UV stays unavailable; an actual zero remains a low daily peak', async () => {
+  const f = fixture('openmeteo');
+  f.setNow(Date.parse('2026-09-08T11:00:00Z'));
+  for (const value of [null, undefined, -1, NaN, Infinity, '0']) {
+    f.OpenMeteoService.prototype.httpGet = async url => {
+      if (url.includes('air-quality')) throw new Error('offline');
+      const payload = meteoPayload(); payload.daily.uv_index_max = [value]; return payload;
+    };
+    const data = await f.service.loadWeather(f.context, undefined, true);
+    assert.equal(data.current.uv, '暂无数据', String(value));
+    assert.equal(data.daily[0].uvIndex, -1);
+    assert.equal(lifeRow(data, '紫外线').brief, '暂无数据');
+    assert.equal(lifeRow(data, '紫外线').caption, '');
+  }
+  f.OpenMeteoService.prototype.httpGet = async url => {
+    if (url.includes('air-quality')) throw new Error('offline');
+    const payload = meteoPayload(); payload.daily.uv_index_max = [0]; return payload;
+  };
+  const zero = await f.service.loadWeather(f.context, undefined, true);
+  assert.equal(zero.current.uv, '弱');
+  assert.equal(lifeRow(zero, '紫外线').caption, '今日峰值');
+});
+
+test('a missing UV array does not discard otherwise valid Open-Meteo weather', async () => {
+  const f = fixture(); const client = new f.OpenMeteoService();
+  client.httpGet = async url => {
+    if (url.includes('air-quality')) throw new Error('offline');
+    const payload = meteoPayload(); delete payload.daily.uv_index_max; return payload;
+  };
+  const data = await client.fetch(new f.models.CityInfo());
+  assert.equal(data.current.temp, 28);
+  assert.equal(data.current.uv, '暂无数据');
+});
+
+test('old UV caches infer scope only from provider evidence, never from a daily number alone', () => {
+  const f = fixture();
+  const cache = { current: { uv: '很强' }, daily: [{ uvIndex: 8 }] };
+  const known = f.models.WeatherData.fromMock({ ...cache, source: 'openmeteo' });
+  assert.equal(known.current.uvScope, 'daily_max');
+  for (const source of [undefined, 'mock', 'other']) {
+    const unknown = f.models.WeatherData.fromMock({ ...cache, source });
+    assert.equal(unknown.current.uvScope, '', String(source));
+  }
+  const explicit = f.models.WeatherData.fromMock({ ...cache, source: 'openmeteo', current: { uv: '弱', uvScope: 'current' } });
+  assert.equal(explicit.current.uvScope, 'current');
+  const absent = f.models.WeatherData.fromMock({ source: 'openmeteo', current: {}, daily: [{}] });
+  assert.equal(absent.current.uv, '暂无数据');
+  assert.equal(absent.current.uvScope, '');
+  assert.equal(absent.daily[0].uvIndex, -1);
+});
+
+test('UV selects the observation local day, not the first surviving future daily row', async () => {
+  const f = fixture(); const client = new f.OpenMeteoService();
+  client.httpGet = async url => {
+    if (url.includes('air-quality')) throw new Error('offline');
+    const payload = meteoPayload();
+    payload.daily.time[0] += 86400;
+    return payload;
+  };
+  assert.equal((await client.fetch(new f.models.CityInfo())).current.uv, '暂无数据');
+});
+
+test('QWeather daily UV is labeled daily forecast and missing UV does not become low', async () => {
+  const f = fixture(); await f.service.initialize(f.context);
+  f.setNow(Date.parse('2026-09-08T11:00:00Z'));
+  f.service.httpGet = qweatherHttp();
+  const data = await f.service.fetchFromAPI(new f.models.CityInfo());
+  assert.equal(data.current.uvScope, 'daily');
+  assert.equal(lifeRow(data, '紫外线').caption, '今日预报');
+  for (const uv of [null, '', 'bad', '-1', 'Infinity']) {
+    f.service.httpGet = qweatherHttp({ code: '503' }, uv);
+    const missing = await f.service.fetchFromAPI(new f.models.CityInfo());
+    assert.equal(missing.current.uv, '暂无数据');
+    assert.equal(missing.daily[0].uvIndex, -1);
+  }
+});
+
+test('cache restoration cannot convert missing weather or malformed availability into suitable exercise', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  const full = JSON.parse(JSON.stringify(adviceWeather(f)));
+  for (const missing of ['temp', 'feelsLike', 'text', 'precip', 'windSpeed']) {
+    const raw = JSON.parse(JSON.stringify(full)); delete raw.current[missing];
+    await f.service.savePersistentCache(f.context, raw);
+    const cached = await f.service.readPersistentCache(f.context, raw.cityId);
+    assert.equal(lifeRow(cached, '运动').brief, '资料不足', missing);
+  }
+  for (const available of [null, 'false', 'true', 1]) {
+    const raw = JSON.parse(JSON.stringify(full)); raw.air.available = available;
+    const data = f.models.WeatherData.fromMock(raw);
+    assert.equal(data.air.available, false, String(available));
+  }
+});
+
+test('legacy Open-Meteo null daily UV cannot survive as a fabricated weak cache value', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  for (const uvIndex of [null, -1, undefined]) {
+    const raw = JSON.parse(JSON.stringify(adviceWeather(f)));
+    raw.current.uv = '弱'; delete raw.current.uvScope;
+    raw.daily = [{ date: '2026-09-08', uvIndex }];
+    raw.lifeIndex = [{ name: '紫外线', iconKey: 'uv', brief: '弱', detail: '外出请按紫外线等级做好防晒' }];
+    await f.service.savePersistentCache(f.context, raw);
+    const cached = await f.service.readPersistentCache(f.context, raw.cityId);
+    assert.equal(cached.current.uv, '暂无数据', String(uvIndex));
+    assert.equal(cached.current.uvScope, '');
+    assert.equal(lifeRow(cached, '紫外线').brief, '暂无数据');
+  }
+});
+
+test('persisted provider UV retains its original text and provenance', async () => {
+  const f = fixture('qweather'); await f.service.initialize(f.context);
+  const data = adviceWeather(f, 'CN AQI'); data.source = 'qweather';
+  data.lifeIndex = [{ name: '紫外线', iconKey: 'uv', brief: '弱', detail: '和风紫外线预报', source: 'qweather', caption: '今日预报' }];
+  await f.service.savePersistentCache(f.context, data);
+  const restored = await f.service.readPersistentCache(f.context, data.cityId);
+  assert.equal(lifeRow(restored, '紫外线').source, 'qweather');
+  assert.equal(lifeRow(restored, '紫外线').detail, '和风紫外线预报');
+  assert.equal(lifeRow(restored, '紫外线').caption, '今日预报');
+});
+
+test('network-failure fallback recomputes old local exercise and uses a non-today UV caption', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  f.setNow(Date.parse('2026-09-09T00:00:00Z'));
+  const old = adviceWeather(f, 'US AQI', 160);
+  old.observedAt = Date.parse('2026-09-08T11:00:00Z'); old.lastUpdate = old.observedAt + 60000;
+  old.current.uv = '很强'; old.current.uvScope = 'daily_max';
+  old.lifeIndex = [
+    { name: '运动', iconKey: 'sport', brief: '较适宜', detail: '结合空气质量选择运动强度' },
+    { name: '紫外线', iconKey: 'uv', brief: '很强', detail: '外出请按紫外线等级做好防晒', caption: '今日峰值' }
+  ];
+  await f.service.savePersistentCache(f.context, old);
+  f.OpenMeteoService.prototype.fetch = async () => { throw new Error('offline'); };
+  const restored = await f.service.loadWeather(f.context, undefined, true);
+  assert.equal(lifeRow(restored, '运动').brief, '室内为宜');
+  assert.equal(lifeRow(restored, '紫外线').caption, '预报峰值');
+  assert.equal(restored.current.uv, '很强');
+  assert.equal(restored.lastUpdate, old.lastUpdate);
+  assert.equal(restored.observedAt, old.observedAt);
+  assert.equal(restored.isOffline, true);
+});
+
+test('fresh memory cache UV captions roll over at city midnight without changing the peak', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  const data = adviceWeather(f);
+  data.current.uv = '很强'; data.current.uvScope = 'daily_max';
+  data.observedAt = Date.parse('2026-09-08T11:00:00Z');
+  data.lastUpdate = Date.parse('2026-09-08T15:58:00Z');
+  f.service.cache.set(data.cityId, data);
+  f.setNow(Date.parse('2026-09-08T15:59:00Z'));
+  assert.equal(lifeRow(await f.service.loadWeather(f.context), '紫外线').caption, '今日峰值');
+  f.setNow(Date.parse('2026-09-08T16:01:00Z'));
+  assert.equal(lifeRow(await f.service.loadWeather(f.context), '紫外线').caption, '预报峰值');
+  assert.equal(data.current.uv, '很强');
+});
+
+test('UV captions use lastUpdate only without an observation time and unknown dates never claim today', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  const now = Date.parse('2026-09-09T00:00:00Z'); f.setNow(now);
+  for (const [observedAt, lastUpdate, scope, caption] of [
+    [0, now, 'daily_max', '今日峰值'], [0, 0, 'daily_max', '预报峰值'],
+    [0, undefined, 'daily_max', '预报峰值'], [0, NaN, 'daily_max', '预报峰值'],
+    [now - 86400000, now, 'daily_max', '预报峰值'],
+    [0, 0, 'daily', '逐日预报'], [now - 86400000, now, 'daily', '逐日预报']
+  ]) {
+    const data = adviceWeather(f);
+    Object.assign(data, { observedAt, lastUpdate });
+    data.current.uv = '很强'; data.current.uvScope = scope;
+    await f.service.savePersistentCache(f.context, data);
+    const restored = await f.service.readPersistentCache(f.context, data.cityId);
+    assert.equal(lifeRow(restored, '紫外线').caption, caption);
+  }
 });

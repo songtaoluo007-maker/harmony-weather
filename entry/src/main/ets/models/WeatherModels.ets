@@ -74,7 +74,9 @@ export class CurrentWeather {
   windScale: string = '2级'
   pressure: number = 1015
   visibility: number = 28
-  uv: string = '中等'
+  uv: string = '暂无数据'
+  // daily_max / daily / current; empty means the time scope is unknown.
+  uvScope: string = ''
   sunrise: string = '05:46'
   sunset: string = '19:13'
   precip: number = 0
@@ -103,7 +105,7 @@ export class DailyWeather {
   windScale: string = ''
   humidity: number = 0
   pop: number = 0
-  uvIndex: number = 0
+  uvIndex: number = -1
   sunriseAt: number = 0
   sunsetAt: number = 0
   nightHours: number = 0
@@ -113,17 +115,17 @@ export class DailyWeather {
 }
 
 export class AirQuality {
-  available: boolean = true
-  standard: string = 'CN AQI'
-  aqi: number = 32
-  level: string = '优'
+  available: boolean = false
+  standard: string = ''
+  aqi: number = -1
+  level: string = '暂无数据'
   pm25: number = 18
   pm10: number = 36
   no2: number = 18
   so2: number = 5
   co: number = 0.8
   o3: number = 72
-  advice: string = '空气清新，适宜户外活动'
+  advice: string = '空气质量数据暂不可用'
 }
 
 export class LifeIndex {
@@ -131,6 +133,9 @@ export class LifeIndex {
   iconKey: string = ''
   brief: string = ''
   detail: string = ''
+  caption: string = ''
+  // local = app heuristic, qweather = provider index, empty = unknown provenance.
+  source: string = ''
 }
 
 export class WeatherData {
@@ -177,24 +182,39 @@ export class WeatherData {
     data.timezone = WeatherData.getStr(json, 'timezone', 'Asia/Shanghai')
     data.utcOffsetSeconds = WeatherData.getNum(json, 'utcOffsetSeconds', 28800)
     data.observedAt = WeatherData.getNum(json, 'observedAt', 0)
+    data.source = WeatherData.getStr(json, 'source', 'mock')
 
+    // Cache omissions are not observations. Do not let sample constructor values
+    // become evidence for an outdoor-activity recommendation.
+    data.current.temp = NaN
+    data.current.feelsLike = NaN
+    data.current.text = '未知'
+    data.current.windSpeed = -1
+    data.current.precip = -1
     const cur: Record<string, Object> | undefined = json['current'] as Record<string, Object> | undefined
     if (cur) {
-      data.current.temp = WeatherData.getNum(cur, 'temp', 26)
-      data.current.feelsLike = WeatherData.getNum(cur, 'feelsLike', 27)
-      data.current.text = WeatherData.getStr(cur, 'text', '晴')
+      data.current.temp = WeatherData.getNum(cur, 'temp', NaN)
+      data.current.feelsLike = WeatherData.getNum(cur, 'feelsLike', NaN)
+      data.current.text = WeatherData.getStr(cur, 'text', '未知')
       data.current.high = WeatherData.getNum(cur, 'high', 29)
       data.current.low = WeatherData.getNum(cur, 'low', 23)
       data.current.humidity = WeatherData.getNum(cur, 'humidity', 66)
-      data.current.windSpeed = WeatherData.getNum(cur, 'windSpeed', 12)
+      data.current.windSpeed = WeatherData.getNum(cur, 'windSpeed', -1)
       data.current.windDir = WeatherData.getStr(cur, 'windDir', '东南风')
       data.current.windScale = WeatherData.getStr(cur, 'windScale', '2级')
       data.current.pressure = WeatherData.getNum(cur, 'pressure', 1015)
       data.current.visibility = WeatherData.getNum(cur, 'visibility', 28)
-      data.current.uv = WeatherData.getStr(cur, 'uv', '中等')
+      data.current.uv = WeatherData.getStr(cur, 'uv', '暂无数据').trim() || '暂无数据'
+      data.current.uvScope = WeatherData.getStr(cur, 'uvScope', '')
+      // Do not infer scope from the presence of a daily array or from selected settings.
+      // Legacy adapters stored a daily value in current.uv; only their source is evidence.
+      if (cur['uvScope'] === undefined && ['弱', '中等', '较强', '很强', '极强'].includes(data.current.uv)) {
+        if (data.source === 'openmeteo') data.current.uvScope = 'daily_max'
+        if (data.source === 'qweather') data.current.uvScope = 'daily'
+      }
       data.current.sunrise = WeatherData.getStr(cur, 'sunrise', '05:46')
       data.current.sunset = WeatherData.getStr(cur, 'sunset', '19:13')
-      data.current.precip = WeatherData.getNum(cur, 'precip', 0)
+      data.current.precip = WeatherData.getNum(cur, 'precip', -1)
       data.current.cloud = WeatherData.getNum(cur, 'cloud', 10)
     }
 
@@ -231,7 +251,8 @@ export class WeatherData {
         item.windScale = WeatherData.getStr(d, 'windScale', '')
         item.humidity = WeatherData.getNum(d, 'humidity', 0)
         item.pop = WeatherData.getNum(d, 'pop', 0)
-        item.uvIndex = WeatherData.getNum(d, 'uvIndex', 0)
+        const uvIndex: number = WeatherData.getNum(d, 'uvIndex', -1)
+        item.uvIndex = uvIndex >= 0 ? uvIndex : -1
         item.sunriseAt = WeatherData.getNum(d, 'sunriseAt', 0)
         item.sunsetAt = WeatherData.getNum(d, 'sunsetAt', 0)
         item.nightHours = WeatherData.getNum(d, 'nightHours', 0)
@@ -242,19 +263,32 @@ export class WeatherData {
       })
     }
 
+    if (cur && cur['uvScope'] === undefined && (data.source === 'openmeteo' || data.source === 'qweather')) {
+      const date: string = WeatherData.localDate(data.observedAt, data.utcOffsetSeconds).toISOString().substring(0, 10)
+      const uvDay: DailyWeather | undefined = data.observedAt > 0 ?
+        data.daily.find((day: DailyWeather) => day.date === date) : data.daily[0]
+      // The old adapters mapped null/missing UV to a plausible grade. Only a
+      // corresponding numeric daily value can validate that legacy grade.
+      if (!uvDay || uvDay.uvIndex < 0) {
+        data.current.uv = '暂无数据'
+        data.current.uvScope = ''
+      }
+    }
+
     const air: Record<string, Object> | undefined = json['air'] as Record<string, Object> | undefined
     if (air) {
-      data.air.available = WeatherData.getBool(air, 'available', true)
-      data.air.standard = WeatherData.getStr(air, 'standard', 'CN AQI')
-      data.air.aqi = WeatherData.getNum(air, 'aqi', 32)
-      data.air.level = WeatherData.getStr(air, 'level', '优')
+      data.air.aqi = WeatherData.getNum(air, 'aqi', -1)
+      data.air.available = (air['available'] === undefined || air['available'] === true) && data.air.aqi >= 0
+      const legacyStandard: string = data.source === 'openmeteo' ? 'US AQI' : data.source === 'qweather' ? 'CN AQI' : ''
+      data.air.standard = WeatherData.getStr(air, 'standard', legacyStandard)
+      data.air.level = WeatherData.getStr(air, 'level', '暂无数据')
       data.air.pm25 = WeatherData.getNum(air, 'pm25', 18)
       data.air.pm10 = WeatherData.getNum(air, 'pm10', 36)
       data.air.no2 = WeatherData.getNum(air, 'no2', 18)
       data.air.so2 = WeatherData.getNum(air, 'so2', 5)
       data.air.co = WeatherData.getNum(air, 'co', 0.8)
       data.air.o3 = WeatherData.getNum(air, 'o3', 72)
-      data.air.advice = WeatherData.getStr(air, 'advice', '空气清新，适宜户外活动')
+      data.air.advice = WeatherData.getStr(air, 'advice', '空气质量数据暂不可用')
     }
 
     const lifeArr: Array<Record<string, Object>> | undefined =
@@ -266,6 +300,8 @@ export class WeatherData {
         item.iconKey = WeatherData.getStr(l, 'iconKey', WeatherData.getStr(l, 'icon', 'info'))
         item.brief = WeatherData.getStr(l, 'brief', '')
         item.detail = WeatherData.getStr(l, 'detail', '')
+        item.caption = WeatherData.getStr(l, 'caption', '')
+        item.source = WeatherData.getStr(l, 'source', '')
         return item
       })
     }
@@ -282,9 +318,9 @@ export class WeatherData {
       })
     }
 
-    data.lastUpdate = WeatherData.getNum(json, 'lastUpdate', Date.now())
+    // An absent cache timestamp cannot prove today's UV or make old data fresh.
+    data.lastUpdate = WeatherData.getNum(json, 'lastUpdate', 0)
     data.isOffline = WeatherData.getBool(json, 'isOffline', false)
-    data.source = WeatherData.getStr(json, 'source', 'mock')
     return data
   }
 
@@ -295,9 +331,9 @@ export class WeatherData {
 
   private static getNum(obj: Record<string, Object>, key: string, fallback: number): number {
     const val: Object | undefined = obj[key]
-    if (val !== undefined && val !== null) {
+    if (typeof val === 'number' || (typeof val === 'string' && String(val).trim().length > 0)) {
       const num: number = Number(val)
-      if (!Number.isNaN(num)) return num
+      if (Number.isFinite(num)) return num
     }
     return fallback
   }

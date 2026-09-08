@@ -291,6 +291,7 @@ export class WeatherService {
       throw new Error('在线天气配置不完整，请配置和风凭据或切换到免费 Open-Meteo')
     }
     if (!forceRefresh && cached && cached.source === provider && Date.now() - cached.lastUpdate < cacheMinutes * 60 * 1000) {
+      this.refreshLifeIndex(cached)
       this.latestData = cached
       return cached
     }
@@ -299,7 +300,7 @@ export class WeatherService {
     if (apiReady) {
       try {
         const live: WeatherData = provider === 'openmeteo' ? await new OpenMeteoService().fetch(city) : await this.fetchFromAPI(city)
-        if (provider === 'openmeteo') live.lifeIndex = this.getDefaultLifeIndex(live.current)
+        this.refreshLifeIndex(live)
         await this.savePersistentCache(context, live, revision)
         if (revision === this.cacheRevision) {
           this.cache.set(targetId, live)
@@ -388,14 +389,16 @@ export class WeatherService {
         data.current.low = Number(dailyResp.daily[0].tempMin) || data.current.temp
         data.current.sunrise = dailyResp.daily[0].sunrise
         data.current.sunset = dailyResp.daily[0].sunset
-        data.current.uv = this.uvText(Number(dailyResp.daily[0].uvIndex) || 0)
+        const uv: number = this.optionalIndex(dailyResp.daily[0].uvIndex)
+        data.current.uv = this.uvText(uv)
+        data.current.uvScope = uv >= 0 ? 'daily' : ''
       }
     }
-    if (airResp.code === '200') data.air = this.parseAirQuality(airResp.now)
+    if (airResp.code === '200' && airResp.now) data.air = this.parseAirQuality(airResp.now)
     if (hourlyResp.code === '200') data.hourly = this.parseHourlyWeather(hourlyResp.hourly)
-    data.lifeIndex = this.getDefaultLifeIndex(data.current)
     data.lastUpdate = Date.now()
     data.source = 'qweather'
+    data.lifeIndex = this.getDefaultLifeIndex(data.current, data.air, data.lastUpdate, data.utcOffsetSeconds)
     return data
   }
 
@@ -449,7 +452,7 @@ export class WeatherService {
       value.windScale = `${item.windScaleDay}级`
       value.humidity = Number(item.humidity) || 0
       value.pop = Number(item.precip) || 0
-      value.uvIndex = Number(item.uvIndex) || 0
+      value.uvIndex = this.optionalIndex(item.uvIndex)
       return value
     })
   }
@@ -470,7 +473,10 @@ export class WeatherService {
 
   private parseAirQuality(air: QWeatherAirNow): AirQuality {
     const value: AirQuality = new AirQuality()
-    value.aqi = Number(air.aqi) || 0
+    value.standard = 'CN AQI'
+    value.aqi = this.optionalIndex(air.aqi)
+    value.available = value.aqi >= 0
+    if (!value.available) return value
     value.level = air.category || '未知'
     value.pm25 = Number(air.pm2p5) || 0
     value.pm10 = Number(air.pm10) || 0
@@ -514,7 +520,7 @@ export class WeatherService {
     })
     data.lastUpdate = Date.now()
     data.source = 'mock'
-    data.lifeIndex = this.getDefaultLifeIndex(data.current)
+    data.lifeIndex = this.getDefaultLifeIndex(data.current, data.air, data.lastUpdate, data.utcOffsetSeconds)
     return data
   }
 
@@ -543,9 +549,8 @@ export class WeatherService {
       const raw: string = String(await store.get(`${this.getProvider()}_city_${cityId}`, ''))
       if (!raw) return null
       const data: WeatherData = WeatherData.fromMock(JSON.parse(raw) as Record<string, Object>)
-      // These are local suggestions, not provider indices. Upgrade old caches
-      // from their cached observations without making them appear refreshed.
-      data.lifeIndex = this.getDefaultLifeIndex(data.current)
+      // Recompute local advice without changing the observation age or provider indices.
+      this.refreshLifeIndex(data)
       return data
     } catch (error) {
       return null
@@ -558,11 +563,18 @@ export class WeatherService {
   }
 
   private uvText(value: number): string {
+    if (!Number.isFinite(value) || value < 0) return '暂无数据'
     if (value <= 2) return '弱'
     if (value <= 5) return '中等'
     if (value <= 7) return '较强'
     if (value <= 10) return '很强'
     return '极强'
+  }
+
+  private optionalIndex(raw: string | undefined | null): number {
+    if (typeof raw !== 'string' || !raw.trim()) return -1
+    const value: number = Number(raw)
+    return Number.isFinite(value) && value >= 0 ? value : -1
   }
 
   private getAqiAdvice(aqi: number): string {
@@ -573,16 +585,100 @@ export class WeatherService {
     return '空气污染较重，建议留在室内'
   }
 
-  private getDefaultLifeIndex(current: CurrentWeather): LifeIndex[] {
+  private getDefaultLifeIndex(current: CurrentWeather, air?: AirQuality, referenceAt: number = 0,
+    utcOffsetSeconds: number = 28800): LifeIndex[] {
+    const observationDate: Date = WeatherData.localDate(referenceAt, utcOffsetSeconds)
+    const today: Date = WeatherData.localDate(Date.now(), utcOffsetSeconds)
+    const sameDay: boolean = Number.isFinite(referenceAt) && referenceAt > 0 &&
+      observationDate.getUTCFullYear() === today.getUTCFullYear() &&
+      observationDate.getUTCMonth() === today.getUTCMonth() && observationDate.getUTCDate() === today.getUTCDate()
+    const uvAvailable: boolean = ['弱', '中等', '较强', '很强', '极强'].includes(current.uv)
+    const uv: LifeIndex = this.life('紫外线', 'uv', uvAvailable ? current.uv : '暂无数据',
+      uvAvailable ? '外出请按紫外线等级做好防晒。' : '紫外线数据暂不可用，不能据此判断当前强度。')
+    if (uvAvailable && current.uvScope === 'daily_max') {
+      uv.caption = sameDay ? '今日峰值' : '预报峰值'
+      uv.detail = '预报当天的紫外线峰值，不代表当前强度。请结合出行时段参考。'
+    } else if (uvAvailable && current.uvScope === 'daily') {
+      uv.caption = sameDay ? '今日预报' : '逐日预报'
+      uv.detail = '当日紫外线预报，不代表当前强度。外出请按预报等级做好防晒。'
+    } else if (uvAvailable && current.uvScope !== 'current') {
+      uv.caption = '时段未知'
+      uv.detail = '该紫外线数据的时间范围未注明，不能视为当前强度。'
+    }
     return [
       this.life('穿衣', 'clothing', current.temp >= 26 ? '舒适' : '薄外套', '根据体感温度及时增减衣物'),
-      this.life('紫外线', 'uv', current.uv, '外出请按紫外线等级做好防晒'),
+      uv,
       this.life('洗车', 'car', current.precip > 0 ? '不适宜' : '参考预报', '出发前请查看未来降水概率。'),
       this.life('旅游', 'travel', '暂无数据', '旅游指数暂不可用，可查看逐日天气规划行程。'),
       this.life('感冒', 'cold', '暂无数据', '感冒指数暂不可用。温差不能用于判断个人感冒风险。'),
       this.life('温差', 'temperature', `${Math.max(0, current.high - current.low)}°`, '当日最高与最低气温之差。'),
-      this.life('运动', 'sport', current.precip > 0 ? '室内为宜' : '较适宜', '结合空气质量选择运动强度')
+      this.exerciseAdvice(current, air)
     ]
+  }
+
+  private exerciseAdvice(current: CurrentWeather, air?: AirQuality): LifeIndex {
+    const knownAir: boolean = air !== undefined && air.available === true &&
+      Number.isFinite(air.aqi) && air.aqi >= 0 && ['US AQI', 'CN AQI'].includes(air.standard)
+    const basis: string = knownAir && air ? `${air.standard} ${air.aqi}。` : '空气质量数据缺失或标准未知。'
+    const note: string = '本地保守活动提示，仅依据天气和空气资料，不是个人健康评估。'
+    // Category boundaries, not pollutant conversions or a clinical score:
+    // https://www.airnow.gov/aqi/aqi-basics/
+    // https://www.mee.gov.cn/ywgz/fgbz/bz/bzwb/jcffbz/202602/t20260225_1144441.shtml
+    if (knownAir && air && air.aqi > 150) {
+      return this.life('运动', 'sport', '室内为宜', basis + '减少或推迟户外运动，优先考虑室内活动。' + note)
+    }
+    // 0/35°C and 40 km/h are intentionally conservative product heuristics,
+    // not official warning thresholds or claims of individual safety.
+    if (/雷|雨|雪|雾|霾|沙|尘|冰雹/.test(current.text) || current.precip > 0 ||
+      current.temp <= 0 || current.temp >= 35 || current.feelsLike <= 0 || current.feelsLike >= 35 || current.windSpeed >= 40) {
+      return this.life('运动', 'sport', '室内为宜', basis + '有降水、低能见度、较强风或明显冷暖条件，优先考虑室内活动。' + note)
+    }
+    if (knownAir && air && air.aqi > 100) {
+      return this.life('运动', 'sport', '减少户外', basis + '保守起见，减少长时间或高强度户外活动，留意当地空气提示。' + note)
+    }
+    if (!knownAir || !Number.isFinite(current.temp) || !Number.isFinite(current.feelsLike) ||
+      !Number.isFinite(current.precip) || current.precip < 0 || !Number.isFinite(current.windSpeed) || current.windSpeed < 0 ||
+      !/晴|云|阴/.test(current.text)) {
+      return this.life('运动', 'sport', '资料不足', basis + '尚不能判断户外运动条件，请补充查看当地天气和空气信息。' + note)
+    }
+    if (air && air.aqi > 50) {
+      return this.life('运动', 'sport', '适度活动', basis + '留意空气变化，灵活调整户外活动安排。' + note)
+    }
+    return this.life('运动', 'sport', '较适宜', basis + '已知天气条件较平稳，活动前仍请查看当地提醒。' + note)
+  }
+
+  private refreshLifeIndex(data: WeatherData): void {
+    const referenceAt: number = data.observedAt > 0 ? data.observedAt : data.lastUpdate
+    const defaults: LifeIndex[] = this.getDefaultLifeIndex(data.current, data.air, referenceAt, data.utcOffsetSeconds)
+    const previous: LifeIndex[] = data.lifeIndex
+    data.lifeIndex = defaults.map((local: LifeIndex) => {
+      const existing: LifeIndex | undefined = previous.find((item: LifeIndex) => item.name === local.name)
+      if (!existing || !existing.brief.trim() || this.isLocalLifeIndex(existing, data.source)) return local
+      // Keep provider indices unless a positive exercise assertion conflicts with known
+      // conditions or insufficient evidence. The guard is explicitly attributed to local.
+      if (local.name === '运动' && local.brief !== '较适宜' &&
+        /适宜|适合|推荐户外/.test(existing.brief + existing.detail) && !/不适宜|不宜|不适合|避免|减少|室内/.test(existing.brief)) return local
+      return existing
+    })
+    previous.forEach((item: LifeIndex) => {
+      if (!defaults.some((local: LifeIndex) => local.name === item.name)) data.lifeIndex.push(item)
+    })
+  }
+
+  private isLocalLifeIndex(item: LifeIndex, provider: string): boolean {
+    if (item.source === 'local') return true
+    if (item.source) return false
+    // Open-Meteo has no provider life-index endpoint in this adapter.
+    if (provider === 'openmeteo' || provider === 'mock') return true
+    // Exact legacy local wording is migration evidence; a QWeather weather source
+    // alone does not prove whether an untagged index was local or provider-authored.
+    const legacy: Map<string, string> = new Map([
+      ['穿衣', '根据体感温度及时增减衣物'], ['紫外线', '外出请按紫外线等级做好防晒'],
+      ['洗车', '出发前请查看未来降水概率。'], ['旅游', '旅游指数暂不可用，可查看逐日天气规划行程。'],
+      ['感冒', '感冒指数暂不可用。温差不能用于判断个人感冒风险。'],
+      ['温差', '当日最高与最低气温之差。'], ['运动', '结合空气质量选择运动强度']
+    ])
+    return legacy.get(item.name) === item.detail
   }
 
   private life(name: string, iconKey: string, brief: string, detail: string): LifeIndex {
@@ -591,6 +687,7 @@ export class WeatherService {
     value.iconKey = iconKey
     value.brief = brief
     value.detail = detail
+    value.source = 'local'
     return value
   }
 }
