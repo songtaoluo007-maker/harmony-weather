@@ -30,9 +30,17 @@ with a webpage.
 - Fixed stale hourly/daily/lifestyle ForEach rows after city switches. Weather
   caches are separated by provider; missing QWeather credentials report an error
   instead of silently selecting demo mode. QWeather configuration remains local.
+- Restored six audited feature regressions: numeric wind speed, all six pollutants,
+  original life entries (travel/cold explicitly unavailable), loading skeleton,
+  layered falling snow, and sunset-to-next-sunrise hourly night summaries.
+  Old caches gain the life entries without changing their weather/age; unknown
+  night data never copies daytime conditions. Extra day 16 completes night 15.
 
 ## Preview and evidence
 
+- [Restored-feature native screenshots](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/feature-restoration.jpg)
+- [Native snowfall motion capture](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/parity-snow-motion.gif)
+- [Feature-preservation checklist and evidence](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/docs/feature-restoration.md)
 - [Four native screens](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/redesign-overview.jpg)
 - [Current live Shenzhen/Beijing and day-rain preview](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/live-weather-scenes.jpg)
 - [Native daytime rain motion capture](https://github.com/songtaoluo007-maker/harmony-weather/blob/codex/originos-weather-redesign/design/live-day-rain-motion.gif)
@@ -44,8 +52,14 @@ with a webpage.
 
 - Hvigor `assembleHap` with SDK `6.1.1(24)` succeeds; unsigned HAP installs and
   launches on the Pura 90 emulator.
-- Sixteen real-service/model tests pass with platform I/O mocked, including
-  provider-separated offline restoration and city-local solar boundaries.
+- Twenty-five real-service/model/presentation tests pass with platform I/O mocked,
+  including provider-separated offline restoration, city-local solar boundaries,
+  night coverage, old-cache upgrades, pollutants, life entries and snow positions.
+- Native restored-feature checks: six pollutant rows/dialog with correct units,
+  travel/cold explanations, numeric wind speed, first-load skeleton, first and
+  fifteenth night detail, and real falling snow. Snow motion off yields identical
+  screenshot hashes; re-enabling motion restores rain. Latest UI checked at ~377vp;
+  particle bounds tests at 320/360/390/480 do not replace full responsive UI testing.
 - Actual native HTTPS integration: Shenzhen 19:46 clear 28°C and Beijing 19:46
   cloudy 19°C, automatically lit night scenes. City switches refresh hourly
   temperatures and daily icons, not merely the current temperature/heading.
@@ -64,7 +78,9 @@ with a webpage.
   account/API integration is reserved but unverified. Free Open-Meteo is
   non-commercial and rate-limited; model values are not station observations.
 - City photos are historical scenes, not live cameras. Motion is separately
-  composited clouds, rain and glass droplets. No official alerts feed is included.
+  composited clouds, rain, glass droplets and snow. No official alerts feed is included.
+- Travel/cold entries have no reliable index source and say unavailable. Night
+  weather is labeled hourly aggregation, not an independent official night product.
 - App-specific motion toggle is implemented, **not** system reduced-motion sync.
 - Existing city catalog contains 15 cities; global search and drag sorting are
   future work. 390/480vp, tablet, landscape, screen reader, real location denial,

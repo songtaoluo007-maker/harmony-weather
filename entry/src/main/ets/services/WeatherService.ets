@@ -487,6 +487,7 @@ export class WeatherService {
     })
     data.lastUpdate = Date.now()
     data.source = 'mock'
+    data.lifeIndex = this.getDefaultLifeIndex(data.current)
     return data
   }
 
@@ -505,7 +506,11 @@ export class WeatherService {
       const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_cache' })
       const raw: string = String(await store.get(`${this.getProvider()}_city_${cityId}`, ''))
       if (!raw) return null
-      return WeatherData.fromMock(JSON.parse(raw) as Record<string, Object>)
+      const data: WeatherData = WeatherData.fromMock(JSON.parse(raw) as Record<string, Object>)
+      // These are local suggestions, not provider indices. Upgrade old caches
+      // from their cached observations without making them appear refreshed.
+      data.lifeIndex = this.getDefaultLifeIndex(data.current)
+      return data
     } catch (error) {
       return null
     }
@@ -537,7 +542,9 @@ export class WeatherService {
       this.life('穿衣', 'clothing', current.temp >= 26 ? '舒适' : '薄外套', '根据体感温度及时增减衣物'),
       this.life('紫外线', 'uv', current.uv, '外出请按紫外线等级做好防晒'),
       this.life('洗车', 'car', current.precip > 0 ? '不适宜' : '参考预报', '本地生活建议：出发前请查看未来降水概率'),
-      this.life('温差', 'cold', `${Math.max(0, current.high - current.low)}°`, '本地生活建议：根据昼夜温差增减衣物，不是健康风险预测'),
+      this.life('旅游', 'travel', '暂无数据', '当前数据源未提供可靠的旅游指数。可参考逐日天气与降水预报规划行程；这里不生成适宜度评级。'),
+      this.life('感冒', 'cold', '暂无数据', '当前未接入可靠的感冒指数服务。温差不等于感冒风险，不据此生成健康风险评级。'),
+      this.life('温差', 'temperature', `${Math.max(0, current.high - current.low)}°`, '本地生活建议：根据昼夜温差增减衣物，不是健康风险预测'),
       this.life('运动', 'sport', current.precip > 0 ? '室内为宜' : '较适宜', '结合空气质量选择运动强度')
     ]
   }

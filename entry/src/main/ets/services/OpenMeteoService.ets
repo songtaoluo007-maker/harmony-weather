@@ -19,7 +19,7 @@ interface MeteoHourly {
   temperature_2m: (number | null)[]
   relative_humidity_2m: number[]
   precipitation_probability: (number | null)[]
-  weather_code: number[]
+  weather_code: (number | null)[]
   visibility: number[]
   wind_speed_10m: number[]
   wind_direction_10m: number[]
@@ -63,7 +63,7 @@ export class OpenMeteoService {
     const hourly: string = 'temperature_2m,relative_humidity_2m,precipitation_probability,weather_code,visibility,wind_speed_10m,wind_direction_10m,is_day'
     const daily: string = 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_speed_10m_max,wind_direction_10m_dominant'
     const response: MeteoResponse = await this.httpGet<MeteoResponse>(
-      `https://api.open-meteo.com/v1/forecast?${location}&current=${current}&hourly=${hourly}&daily=${daily}&timezone=auto&timeformat=unixtime&forecast_days=15`)
+      `https://api.open-meteo.com/v1/forecast?${location}&current=${current}&hourly=${hourly}&daily=${daily}&timezone=auto&timeformat=unixtime&forecast_days=16`)
     const data: WeatherData = this.parse(response, city)
     // Air quality is optional and cannot block current weather or its scene.
     try {
@@ -115,12 +115,12 @@ export class OpenMeteoService {
     const start: number = Math.max(0, hours.time.findIndex((time: number) => time >= Math.floor(now.time / 3600) * 3600))
     for (let i: number = start; i < Math.min(hours.time.length, start + 24); i++) {
       const temperature: number | null = hours.temperature_2m[i]
-      if (temperature === null || !Number.isFinite(temperature)) continue
+      if (temperature === null || !Number.isFinite(temperature) || !Number.isFinite(hours.time[i])) continue
       const item: HourlyWeather = new HourlyWeather()
       item.timestamp = hours.time[i] * 1000
       item.time = WeatherData.localTime(item.timestamp, data.utcOffsetSeconds)
       item.temp = Math.round(temperature)
-      item.text = OpenMeteoService.weatherText(hours.weather_code[i])
+      item.text = hours.weather_code[i] !== null ? OpenMeteoService.weatherText(hours.weather_code[i] as number) : '暂无'
       item.pop = hours.precipitation_probability[i] ?? -1
       item.windDir = OpenMeteoService.windDirection(hours.wind_direction_10m[i])
       item.windScale = OpenMeteoService.windScale(hours.wind_speed_10m[i])
@@ -130,7 +130,8 @@ export class OpenMeteoService {
     if (Number.isFinite(hours.visibility[start])) data.current.visibility = Math.round(hours.visibility[start] / 100) / 10
     const days: MeteoDaily = response.daily
     const weeks: string[] = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-    for (let i: number = 0; i < days.time.length; i++) {
+    // The extra sixteenth forecast day is used only to complete the fifteenth night.
+    for (let i: number = 0; i < Math.min(15, days.time.length); i++) {
       const high: number | null = days.temperature_2m_max[i]
       const low: number | null = days.temperature_2m_min[i]
       if (high === null || low === null || !Number.isFinite(high) || !Number.isFinite(low)) continue
@@ -141,9 +142,10 @@ export class OpenMeteoService {
       day.high = Math.round(high)
       day.low = Math.round(low)
       day.textDay = OpenMeteoService.weatherText(days.weather_code[i])
-      day.textNight = '见逐小时预报'
+      day.textNight = '暂无夜间数据'
       day.sunriseAt = days.sunrise[i] * 1000
       day.sunsetAt = days.sunset[i] * 1000
+      this.summarizeNight(day, hours, days.sunrise[i + 1] * 1000, data.utcOffsetSeconds)
       day.pop = days.precipitation_probability_max[i] ?? -1
       day.uvIndex = days.uv_index_max[i]
       day.windDir = OpenMeteoService.windDirection(days.wind_direction_10m_dominant[i])
@@ -161,6 +163,26 @@ export class OpenMeteoService {
       data.current.uv = today.uvIndex <= 2 ? '弱' : today.uvIndex <= 5 ? '中等' : today.uvIndex <= 7 ? '较强' : '很强'
     }
     return data
+  }
+
+  private summarizeNight(day: DailyWeather, hours: MeteoHourly, nextSunriseAt: number, offset: number): void {
+    if (!Number.isFinite(day.sunsetAt) || day.sunsetAt <= 0 ||
+      !Number.isFinite(nextSunriseAt) || nextSunriseAt <= day.sunsetAt) return
+    day.nightSummarySource = 'hourly'
+    day.nightRange = `${WeatherData.localTime(day.sunsetAt, offset)}–次日${WeatherData.localTime(nextSunriseAt, offset)}`
+    day.nightExpectedHours = Math.ceil(nextSunriseAt / 3600000) - Math.ceil(day.sunsetAt / 3600000)
+    const descriptions: string[] = []
+    for (let i: number = 0; i < hours.time.length; i++) {
+      const timestamp: number = hours.time[i] * 1000
+      if (!Number.isFinite(timestamp) || timestamp < day.sunsetAt || timestamp >= nextSunriseAt) continue
+      const code: number | null = hours.weather_code[i]
+      if (code === null || !Number.isFinite(code)) continue
+      const description: string = OpenMeteoService.weatherText(code)
+      if (description === '未知') continue
+      day.nightHours++
+      if (!descriptions.includes(description)) descriptions.push(description)
+    }
+    if (descriptions.length) day.textNight = descriptions.join(' / ')
   }
 
   private parseAir(now: MeteoAirCurrent): AirQuality {

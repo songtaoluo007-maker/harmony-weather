@@ -2,7 +2,7 @@
 
 一款使用 ArkTS Stage 模型实现的现代动态天气应用。界面以沉浸式城市天气背景为核心，支持逐小时预报、15 日预报、空气质量、生活指数、城市管理、定位、离线缓存和显示设置。
 
-背景由三部分实时合成：城市影像、天气/昼夜色彩层、动态天气层。晴天和多云时云层缓慢移动；雨天会叠加中远景下落雨线与前景玻璃水滴，关闭“动态效果”后所有位移动画停止。
+背景由三部分实时合成：城市影像、天气/昼夜色彩层、动态天气层。晴天和多云时云层缓慢移动；雨天叠加中远景雨线与前景玻璃水滴，雪天有分层飘雪，关闭“动态天气”后位移动画停止。
 
 ## 本地天气配置
 
@@ -26,6 +26,11 @@
 本地文件优先于默认配置；切回免费源时删除本地覆盖文件或将其 provider 改为 `openmeteo`。
 完整说明见 [在线天气与动态场景](docs/live-weather-scenes.md)。
 
+已补回风速数值、六项污染物、原有六个生活入口、夜间预报、雪粒动画与加载骨架。
+旅游/感冒无可靠指数时显示暂无数据，温差独立展示；其他生活提示仍为本地规则。
+夜间预报依据日落至次日日出的逐小时数据汇总，不直接复制全天概况。
+功能保留清单与验收范围见 [功能补回报告](docs/feature-restoration.md)。
+
 ## 构建
 
 在 DevEco Studio 中选择 `entry > default` 并运行 `assembleHap`。当前验证 SDK：`6.1.1(24)`；生成的未签名 HAP 位于：
@@ -41,6 +46,8 @@
 - 选定视觉稿：[design/originos-weather-target.png](design/originos-weather-target.png)
 - 2026-09 原生界面总览：[design/redesign-overview.jpg](design/redesign-overview.jpg)
 - 当前在线天气 / 城市夜景 / 白天雨景：[design/live-weather-scenes.jpg](design/live-weather-scenes.jpg)
+- 功能补回原生截图：[design/feature-restoration.jpg](design/feature-restoration.jpg)
+- 原生飘雪动态采样：[design/parity-snow-motion.gif](design/parity-snow-motion.gif)（明确标注的背景预览）
 - 深圳自动夜景：[design/live-shenzhen-night.jpeg](design/live-shenzhen-night.jpeg)
 - 生活气象：[design/redesign-life-final.jpeg](design/redesign-life-final.jpeg)
 - 白天雨景实际动态采样：[design/live-day-rain-motion.gif](design/live-day-rain-motion.gif)（明确标注的背景预览）

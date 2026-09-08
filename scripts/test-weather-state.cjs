@@ -33,7 +33,7 @@ function fixture(provider = 'qweather') {
     }).outputText;
     const module = { exports: {} };
     const platformRequire = (name) => {
-      if (name === '../models/WeatherModels') return modules.models;
+      if (name === '../models/WeatherModels' || name === './WeatherModels') return modules.models;
       if (name === './OpenMeteoService') return modules.openMeteo;
       if (name === '@kit.ArkData') return { preferences: prefs };
       if (name === '@kit.ArkTS') return { util: { TextDecoder: {
@@ -48,6 +48,8 @@ function fixture(provider = 'qweather') {
     return module.exports;
   }
   modules.models = load('models/WeatherModels');
+  const presentation = fs.existsSync(path.join(sourceRoot, 'models/WeatherPresentation.ets')) ? load('models/WeatherPresentation') : {};
+  const snow = fs.existsSync(path.join(sourceRoot, 'models/SnowField.ets')) ? load('models/SnowField') : {};
   modules.openMeteo = fs.existsSync(path.join(sourceRoot, 'services/OpenMeteoService.ets')) ? load('services/OpenMeteoService') : {};
   const { WeatherService, AppSettings } = load('services/WeatherService');
   const service = new WeatherService();
@@ -62,6 +64,7 @@ function fixture(provider = 'qweather') {
   } } };
   return { service, AppSettings, context, models: modules.models, stores,
     OpenMeteoService: modules.openMeteo.OpenMeteoService, theme: load('theme/WeatherTheme').WeatherTheme,
+    presentation: presentation.WeatherPresentation, snow: snow.SnowField,
     failStorage: () => { failing = true; } };
 }
 
@@ -300,4 +303,139 @@ test('Open-Meteo network failure restores persistent real data after clearing me
   assert.equal(cached.air.available, false);
   assert.equal(cached.hourly[0].temp, 28);
   assert.equal(cached.daily[0].sunsetAt, real.daily[0].sunsetAt);
+});
+
+test('wind presentation retains speed with units as well as direction and force', () => {
+  const f = fixture();
+  assert.equal(typeof f.presentation?.windSpeed, 'function', 'wind speed must be a displayed metric');
+  assert.equal(f.presentation.windSpeed(6.9), '6.9 km/h');
+  assert.equal(f.presentation.windSpeed(0), '0 km/h');
+  assert.equal(f.presentation.windSpeed(-1), '暂无');
+});
+
+test('air presentation exposes all six pollutants with the correct CO unit', () => {
+  const f = fixture();
+  assert.equal(typeof f.presentation?.pollutants, 'function', 'all pollutant rows are required');
+  const air = new f.models.AirQuality();
+  const rows = f.presentation.pollutants(air);
+  assert.equal(rows.length, 6);
+  assert.equal(rows.map(r => r.key).join(','), 'pm25,pm10,no2,so2,co,o3');
+  assert.equal(rows.find(r => r.key === 'co').unit, 'mg/m³');
+  assert.equal(rows.find(r => r.key === 'so2').unit, 'μg/m³');
+  air.available = false;
+  assert.ok(f.presentation.pollutants(air).every(r => r.value === '暂无'));
+});
+
+test('life modules retain all six original entries without invented travel or health ratings', () => {
+  const f = fixture();
+  const rows = f.service.getDefaultLifeIndex(new f.models.CurrentWeather());
+  for (const name of ['穿衣', '运动', '紫外线', '洗车', '旅游', '感冒']) {
+    assert.ok(rows.some(r => r.name === name), `missing original life module: ${name}`);
+  }
+  for (const name of ['旅游', '感冒']) {
+    assert.equal(rows.find(r => r.name === name).brief, '暂无数据');
+  }
+  assert.ok(rows.some(r => r.name === '温差'));
+});
+
+function nightPayload() {
+  const data = meteoPayload();
+  const start = Date.parse('2026-09-07T16:00:00Z') / 1000;
+  for (const key of Object.keys(data.hourly)) data.hourly[key] = [];
+  for (let i = 0; i < 48; i++) {
+    data.hourly.time.push(start + i * 3600);
+    data.hourly.temperature_2m.push(20);
+    data.hourly.weather_code.push(i < 6 ? 95 : i >= 19 && i < 30 ? (i < 24 ? 3 : 61) : 0);
+    data.hourly.is_day.push(i % 24 >= 6 && i % 24 < 19 ? 1 : 0);
+    data.hourly.relative_humidity_2m.push(70);
+    data.hourly.precipitation_probability.push(20);
+    data.hourly.visibility.push(10000);
+    data.hourly.wind_speed_10m.push(7);
+    data.hourly.wind_direction_10m.push(180);
+  }
+  for (const key of Object.keys(data.daily)) data.daily[key].push(data.daily[key][0]);
+  data.daily.time[1] += 86400;
+  data.daily.sunrise[0] = start + 6 * 3600;
+  data.daily.sunset[0] = start + 18.5 * 3600;
+  data.daily.sunrise[1] = start + 30 * 3600;
+  data.daily.sunset[1] = start + 42.5 * 3600;
+  return data;
+}
+
+test('night summary uses sunset to next sunrise, not previous dawn or daily daytime code', async () => {
+  const f = fixture(); const client = new f.OpenMeteoService(); const urls = [];
+  client.httpGet = async url => { urls.push(url); if (url.includes('air-quality')) throw new Error('offline'); return nightPayload(); };
+  const data = await client.fetch(new f.models.CityInfo());
+  const first = data.daily[0];
+  assert.equal(first.textNight, '阴 / 小雨');
+  assert.equal(first.nightHours, 11);
+  assert.equal(first.nightExpectedHours, 11);
+  assert.equal(first.nightSummarySource, 'hourly');
+  assert.equal(first.nightRange, '18:30–次日06:00');
+  assert.ok(urls[0].includes('forecast_days=16'), 'one extra day is needed for the fifteenth night');
+  const restored = f.models.WeatherData.fromMock(JSON.parse(JSON.stringify(data)));
+  assert.equal(restored.daily[0].nightHours, 11);
+  assert.equal(restored.daily[0].nightRange, first.nightRange);
+});
+
+test('incomplete or missing night hours are labeled instead of copied from daytime', async () => {
+  const f = fixture(); const client = new f.OpenMeteoService(); const payload = nightPayload();
+  payload.hourly.weather_code[20] = null;
+  client.httpGet = async url => { if (url.includes('air-quality')) throw new Error('offline'); return payload; };
+  const data = await client.fetch(new f.models.CityInfo());
+  assert.equal(data.daily[0].nightHours, 10);
+  assert.equal(data.daily[0].nightExpectedHours, 11);
+  assert.equal(data.daily[1].textNight, '暂无夜间数据');
+});
+
+test('night coverage excludes malformed timestamps instead of counting them as nighttime', async () => {
+  const f = fixture(); const client = new f.OpenMeteoService(); const payload = nightPayload();
+  payload.hourly.time[20] = undefined;
+  client.httpGet = async url => { if (url.includes('air-quality')) throw new Error('offline'); return payload; };
+  const data = await client.fetch(new f.models.CityInfo());
+  assert.equal(data.daily[0].nightHours, 10);
+  assert.equal(data.daily[0].nightExpectedHours, 11);
+});
+
+test('snow particles fall, drift and wrap within measured containers', () => {
+  const f = fixture();
+  assert.equal(typeof f.snow?.frame, 'function', 'a moving snow field is required');
+  for (const width of [320, 360, 390, 480]) {
+    const a = f.snow.frame(width, 600, 0), b = f.snow.frame(width, 600, .02);
+    assert.ok(a.length >= 30 && a.length <= 60);
+    assert.ok(a.some((p, i) => p.y !== b[i].y && p.x !== b[i].x));
+    assert.ok(b.every(p => p.x >= -10 && p.x <= width + 10 && p.y >= -10 && p.y <= 610));
+    assert.deepEqual(f.snow.frame(width, 600, 0), f.snow.frame(width, 600, 1));
+  }
+});
+
+test('upgrading an old offline cache restores life entries without changing its weather or age', async () => {
+  const f = fixture('openmeteo');
+  await f.service.initialize(f.context);
+  const old = new f.models.WeatherData();
+  old.source = 'openmeteo'; old.lastUpdate = 123456; old.current.temp = 21;
+  old.lifeIndex = [{ name: '温差', iconKey: 'cold', brief: '4°', detail: 'old local advice' }];
+  await f.service.savePersistentCache(f.context, old);
+  f.OpenMeteoService.prototype.fetch = async () => { throw new Error('offline'); };
+  const data = await f.service.loadWeather(f.context, undefined, true);
+  assert.equal(data.isOffline, true);
+  assert.equal(data.lastUpdate, 123456);
+  assert.equal(data.current.temp, 21);
+  for (const name of ['穿衣', '运动', '紫外线', '洗车', '旅游', '感冒']) {
+    assert.ok(data.lifeIndex.some(item => item.name === name), name);
+  }
+  for (const name of ['旅游', '感冒']) assert.equal(data.lifeIndex.find(item => item.name === name).brief, '暂无数据');
+  const demo = fixture('mock');
+  const demoData = await demo.service.loadWeather(demo.context);
+  assert.ok(demoData.lifeIndex.some(item => item.name === '旅游'));
+});
+
+test('old cached night placeholders never become a fabricated daytime copy', () => {
+  const f = fixture();
+  for (const textNight of [undefined, '', '见逐小时预报']) {
+    const data = f.models.WeatherData.fromMock({ daily: [{ textDay: '晴', textNight }] });
+    assert.equal(data.daily[0].textNight, '暂无夜间数据');
+  }
+  const real = f.models.WeatherData.fromMock({ daily: [{ textDay: '晴', textNight: '小雨' }] });
+  assert.equal(real.daily[0].textNight, '小雨');
 });

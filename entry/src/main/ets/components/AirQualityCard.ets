@@ -1,4 +1,5 @@
 import { AirQuality, CurrentWeather } from '../models/WeatherModels'
+import { PollutantValue, WeatherPresentation } from '../models/WeatherPresentation'
 import { ThemeColors } from '../theme/WeatherTheme'
 
 @Component
@@ -43,10 +44,15 @@ export struct AirQualityCard {
           }.width('100%')
         }.layoutWeight(1).alignItems(HorizontalAlign.Start)
       }.width('100%')
-      Row() {
-        Text(`PM2.5  ${this.air.pm25} μg/m³`).fontSize(11).fontColor(this.themeColors.textTertiary)
-        Blank()
-        Text(`PM10  ${this.air.pm10} μg/m³`).fontSize(11).fontColor(this.themeColors.textTertiary)
+      Flex({ wrap: FlexWrap.Wrap }) {
+        ForEach(WeatherPresentation.pollutants(this.air), (item: PollutantValue) => {
+          Column({ space: 5 }) {
+            Text(item.label).fontSize(11).fontColor(this.themeColors.textSecondary)
+            Text(item.value).fontSize(18).fontWeight(300).fontColor(this.themeColors.textColor)
+            Text(item.unit).fontSize(10).fontColor(this.themeColors.textTertiary)
+          }.width('33.33%').padding({ top: 12, bottom: 8 }).alignItems(HorizontalAlign.Start)
+            .accessibilityText(`${item.label}，${item.value} ${item.unit}`)
+        }, (item: PollutantValue) => JSON.stringify(item))
       }.width('100%')
       }
     }
@@ -54,7 +60,7 @@ export struct AirQualityCard {
     .border({ width: { bottom: 0.5 }, color: this.themeColors.divider })
     .onClick(() => this.getUIContext().showAlertDialog({
       title: this.air.available ? `空气质量 · ${this.air.level}` : '空气质量暂不可用',
-      message: this.air.available ? `${this.air.standard} · ${this.air.advice}\n\nPM2.5：${this.air.pm25} μg/m³\nPM10：${this.air.pm10} μg/m³\n二氧化氮：${this.air.no2} μg/m³\n臭氧：${this.air.o3} μg/m³` : '天气服务暂未返回空气质量，没有使用模拟数值替代。',
+      message: this.air.available ? `${this.air.standard} · ${this.air.advice}\n\n${WeatherPresentation.pollutants(this.air).map((item: PollutantValue) => `${item.label}：${item.value} ${item.unit}`).join('\n')}` : '天气服务暂未返回空气质量，没有使用模拟数值替代。',
       confirm: { value: '知道了', action: () => {} }
     }))
     .accessibilityText(this.air.available ? `${this.air.standard} 空气质量指数${this.air.aqi}，${this.air.level}，点击查看污染物详情` : '空气质量暂不可用')

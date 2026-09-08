@@ -76,11 +76,13 @@ struct WeatherDetails {
                 }.width('100%').constraintSize({ minHeight: 76 }).padding({ left: 14, right: 14 })
                 if (this.expandedDate === item.date) {
                   Column({ space: 12 }) {
-                    Row() {
-                      Text(`白天 · ${item.textDay}`).fontSize(12).fontColor(T.text)
-                      Blank()
-                      Text(`夜间 · ${item.textNight}`).fontSize(12).fontColor(T.muted)
-                    }.width('100%')
+                    Text(`${this.data.source === 'openmeteo' ? '全天概况' : '白天'} · ${item.textDay}`)
+                      .fontSize(12).fontColor(T.text).width('100%')
+                    Text(`夜间 · ${item.textNight}`).fontSize(12).fontColor(T.text).width('100%').lineHeight(19)
+                    if (item.nightSummarySource === 'hourly') {
+                      Text(`${item.nightRange} · 逐小时汇总 ${item.nightHours}/${item.nightExpectedHours} 时段${item.nightHours < item.nightExpectedHours ? ' · 数据不完整' : ''}`)
+                        .fontSize(10).fontColor(T.muted).width('100%').lineHeight(17)
+                    }
                     Row() {
                       Text(`${item.windDir} ${item.windScale}`).fontSize(12).fontColor(T.muted)
                       Blank()

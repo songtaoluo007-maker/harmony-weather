@@ -1,6 +1,7 @@
 import { AnimatorResult } from '@kit.ArkUI'
 import { WeatherVisualState } from '../models/WeatherModels'
 import { ThemeColors, WeatherTheme } from '../theme/WeatherTheme'
+import { SnowfallLayer } from './SnowfallLayer'
 
 @Component
 export struct DynamicWeatherBackground {
@@ -33,13 +34,15 @@ export struct DynamicWeatherBackground {
   private restartMotion(): void {
     this.stopMotion()
     if (!this.mounted || !this.motionEnabled || !this.active) return
-    const clouds: AnimatorResult = this.getUIContext().createAnimator({
-      duration: 42000, easing: 'ease-in-out', delay: 0, fill: 'forwards',
-      direction: 'alternate', iterations: -1, begin: 0, end: 1
-    })
-    clouds.onFrame = (value: number) => { this.cloudPhase = value }
-    this.animators.push(clouds)
-    clouds.play()
+    if (WeatherTheme.shouldShowCloudLayer(this.visualState)) {
+      const clouds: AnimatorResult = this.getUIContext().createAnimator({
+        duration: 42000, easing: 'ease-in-out', delay: 0, fill: 'forwards',
+        direction: 'alternate', iterations: -1, begin: 0, end: 1
+      })
+      clouds.onFrame = (value: number) => { this.cloudPhase = value }
+      this.animators.push(clouds)
+      clouds.play()
+    }
     if (WeatherTheme.shouldShowRainLayer(this.visualState)) {
       const rain: AnimatorResult = this.getUIContext().createAnimator({
         duration: this.visualState === WeatherVisualState.STORM ? 1600 : 2400,
@@ -114,6 +117,10 @@ export struct DynamicWeatherBackground {
             .width('112%').height('120%').objectFit(ImageFit.Cover)
             .opacity(0.32 * Math.min(1, this.glassPhase * 10, (1 - this.glassPhase) * 10))
             .blendMode(BlendMode.SCREEN).translate({ y: this.glassPhase * 70 - 30 })
+        }
+        if (this.visualState === WeatherVisualState.SNOW) {
+          SnowfallLayer({ motionEnabled: this.motionEnabled, active: this.active })
+            .width('100%').height('100%')
         }
         Column().width('100%').height('100%')
           .linearGradient({

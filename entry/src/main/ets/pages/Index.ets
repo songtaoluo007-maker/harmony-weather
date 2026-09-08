@@ -11,6 +11,7 @@ import { NightCityBackgrounds } from '../theme/NightCityBackgrounds'
 import { AppSettings, WeatherService } from '../services/WeatherService'
 import { CityBackground, CityBackgroundService } from '../services/CityBackgroundService'
 import { DynamicWeatherBackground } from '../components/BreathingBackground'
+import { WeatherSkeleton } from '../components/WeatherSkeleton'
 import { HeroSection } from '../components/HeroSection'
 import { HourlyCapsules } from '../components/HourlyCapsules'
 import { WeeklyForecast } from '../components/WeeklyForecast'
@@ -242,11 +243,7 @@ struct Index {
 
   @Builder
   skeletonBuilder() {
-    Column({ space: 18 }) {
-      LoadingProgress().width(36).height(36).color('#AADCE9')
-      Text('正在寻找这座城市的天气').fontSize(15).fontColor('#D5E1E9')
-    }
-    .width('100%').height('100%').justifyContent(FlexAlign.Center)
+    WeatherSkeleton()
   }
 
   @Builder

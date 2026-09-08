@@ -17,6 +17,7 @@ export function weatherIconColor(text: string, fallback: string): string {
 }
 
 export function lifeIconResource(key: string): Resource {
+  if (key === 'temperature') return $r('app.media.thermometer')
   if (key === 'clothing') return $r('app.media.tshirt')
   if (key === 'uv') return $r('app.media.weather_sunny')
   if (key === 'car') return $r('app.media.car_wash')

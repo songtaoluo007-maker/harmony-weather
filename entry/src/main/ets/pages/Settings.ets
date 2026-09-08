@@ -69,7 +69,7 @@ struct SettingsPage {
             Row() {
               Column({ space: 6 }) {
                 Text('动态天气').fontSize(16).fontWeight(FontWeight.Medium).fontColor(T.text)
-                Text('流动的云、远处的雨和窗上的水滴').fontSize(12).fontColor(T.muted).lineHeight(18)
+                Text('流动的云、飘落的雪、远雨与窗上水滴').fontSize(12).fontColor(T.muted).lineHeight(18)
               }.alignItems(HorizontalAlign.Start).layoutWeight(1).margin({ right: 12 })
               Toggle({ type: ToggleType.Switch, isOn: this.motionEnabled }).selectedColor(T.accent)
                 .onChange((value: boolean) => { this.motionEnabled = value; this.save() })

@@ -106,6 +106,10 @@ export class DailyWeather {
   uvIndex: number = 0
   sunriseAt: number = 0
   sunsetAt: number = 0
+  nightHours: number = 0
+  nightExpectedHours: number = 0
+  nightSummarySource: string = ''
+  nightRange: string = ''
 }
 
 export class AirQuality {
@@ -219,7 +223,8 @@ export class WeatherData {
         item.date = WeatherData.getStr(d, 'date', '')
         item.week = WeatherData.getStr(d, 'week', '')
         item.textDay = WeatherData.getStr(d, 'textDay', '')
-        item.textNight = WeatherData.getStr(d, 'textNight', item.textDay)
+        item.textNight = WeatherData.getStr(d, 'textNight', '暂无夜间数据')
+        if (!item.textNight.trim() || item.textNight === '见逐小时预报') item.textNight = '暂无夜间数据'
         item.high = WeatherData.getNum(d, 'high', 0)
         item.low = WeatherData.getNum(d, 'low', 0)
         item.windDir = WeatherData.getStr(d, 'windDir', '')
@@ -229,6 +234,10 @@ export class WeatherData {
         item.uvIndex = WeatherData.getNum(d, 'uvIndex', 0)
         item.sunriseAt = WeatherData.getNum(d, 'sunriseAt', 0)
         item.sunsetAt = WeatherData.getNum(d, 'sunsetAt', 0)
+        item.nightHours = WeatherData.getNum(d, 'nightHours', 0)
+        item.nightExpectedHours = WeatherData.getNum(d, 'nightExpectedHours', 0)
+        item.nightSummarySource = WeatherData.getStr(d, 'nightSummarySource', '')
+        item.nightRange = WeatherData.getStr(d, 'nightRange', '')
         return item
       })
     }

@@ -1,4 +1,5 @@
 import { CurrentWeather } from '../models/WeatherModels'
+import { WeatherPresentation } from '../models/WeatherPresentation'
 import { ThemeColors } from '../theme/WeatherTheme'
 
 @Component
@@ -11,7 +12,7 @@ export struct DataGrid {
     Column({ space: 8 }) {
       Row({ space: 8 }) {
         this.metric($r('app.media.water_percent'), '湿度', `${this.current.humidity}%`)
-        this.metric($r('app.media.weather_windy'), this.current.windDir, this.current.windScale)
+        this.metric($r('app.media.weather_windy'), `${this.current.windDir} ${this.current.windScale}`, WeatherPresentation.windSpeed(this.current.windSpeed))
       }
       Row({ space: 8 }) {
         this.metric($r('app.media.eye_outline'), '能见度', `${this.current.visibility} km`)
