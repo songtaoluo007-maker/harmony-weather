@@ -1,127 +1,113 @@
+import { AnimatorResult } from '@kit.ArkUI'
 import { WeatherVisualState } from '../models/WeatherModels'
 import { ThemeColors, WeatherTheme } from '../theme/WeatherTheme'
 
 @Component
 export struct DynamicWeatherBackground {
-  @Prop visualState: WeatherVisualState = WeatherVisualState.CLEAR_DAY
+  @Prop @Watch('restartMotion') visualState: WeatherVisualState = WeatherVisualState.CLEAR_DAY
   @Prop hour: number = 12
-  @Prop motionEnabled: boolean = true
+  @Prop @Watch('restartMotion') motionEnabled: boolean = true
+  @Prop @Watch('restartMotion') active: boolean = true
   @Prop themeColors: ThemeColors = new ThemeColors()
   @Prop cityBackgroundResource: Resource = $r('app.media.weather_bg_day')
   @Prop hasBundledCityBackground: boolean = false
   @Prop cityBackgroundUrl: string = ''
-  @State zoom: number = 1
-  @State cloudOffset: number = -42
-  @State rainOffset: number = -220
-  @State glassOffset: number = -16
+  @State sceneWidth: number = 390
+  @State cloudPhase: number = 0
+  @State rainPhase: number = 0
+  @State glassPhase: number = 0
+  private animators: AnimatorResult[] = []
+  private mounted: boolean = false
 
-  aboutToAppear(): void {
-    if (this.motionEnabled) {
-      setTimeout(() => {
-        this.zoom = 1.045
-        this.cloudOffset = 42
-        this.rainOffset = 220
-        this.glassOffset = 16
-      }, 160)
+  aboutToAppear(): void { this.mounted = true; this.restartMotion() }
+  aboutToDisappear(): void { this.mounted = false; this.stopMotion() }
+
+  private stopMotion(): void {
+    this.animators.forEach((animation: AnimatorResult) => animation.cancel())
+    this.animators = []
+  }
+
+  private restartMotion(): void {
+    this.stopMotion()
+    if (!this.mounted || !this.motionEnabled || !this.active) return
+    const clouds: AnimatorResult = this.getUIContext().createAnimator({
+      duration: 42000, easing: 'ease-in-out', delay: 0, fill: 'forwards',
+      direction: 'alternate', iterations: -1, begin: 0, end: 1
+    })
+    clouds.onFrame = (value: number) => { this.cloudPhase = value }
+    this.animators.push(clouds)
+    clouds.play()
+    if (WeatherTheme.shouldShowRainLayer(this.visualState)) {
+      const rain: AnimatorResult = this.getUIContext().createAnimator({
+        duration: this.visualState === WeatherVisualState.STORM ? 1600 : 2400,
+        easing: 'linear', delay: 0, fill: 'forwards', direction: 'normal', iterations: -1, begin: 0, end: 1
+      })
+      rain.onFrame = (value: number) => { this.rainPhase = value }
+      this.animators.push(rain)
+      rain.play()
+      const glass: AnimatorResult = this.getUIContext().createAnimator({
+        duration: 24000, easing: 'linear', delay: 0, fill: 'forwards',
+        direction: 'normal', iterations: -1, begin: 0, end: 1
+      })
+      glass.onFrame = (value: number) => { this.glassPhase = value }
+      this.animators.push(glass)
+      glass.play()
     }
   }
 
+  private sceneHeight(): number { return Math.min(700, Math.max(470, this.sceneWidth * 1.55)) }
+
   build() {
-    Stack() {
-      Image(WeatherTheme.getBackgroundResource(this.visualState, this.hour))
-        .width('100%')
-        .height('100%')
-        .objectFit(ImageFit.Cover)
-        .scale({ x: this.zoom, y: this.zoom })
-        .animation({ duration: 24000, curve: Curve.EaseInOut })
-
-      if (this.hasBundledCityBackground) {
-        Image(this.cityBackgroundResource)
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Cover)
-          .brightness(WeatherTheme.getBackgroundBrightness(this.visualState))
-          .scale({ x: this.zoom, y: this.zoom })
-          .animation({ duration: 24000, curve: Curve.EaseInOut })
-      } else if (this.cityBackgroundUrl) {
-        Image(this.cityBackgroundUrl)
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Cover)
-          .brightness(WeatherTheme.getBackgroundBrightness(this.visualState))
-          .scale({ x: this.zoom, y: this.zoom })
-          .animation({ duration: 24000, curve: Curve.EaseInOut })
-      }
-
-      Column()
-        .width('100%')
-        .height('100%')
-        .backgroundColor(WeatherTheme.getWeatherOverlay(this.visualState, this.hour))
-
-      if (WeatherTheme.shouldShowCloudLayer(this.visualState)) {
-        Image($r('app.media.weather_layer_clouds'))
-          .width('124%')
-          .height('108%')
-          .objectFit(ImageFit.Cover)
-          .opacity(WeatherTheme.getCloudOpacity(this.visualState))
-          .blendMode(BlendMode.SCREEN)
-          .translate({ x: this.motionEnabled ? this.cloudOffset : 0 })
-          .animation({
-            duration: 60000,
-            curve: Curve.Linear,
-            iterations: this.motionEnabled ? -1 : 0,
-            playMode: PlayMode.Alternate
+    Stack({ alignContent: Alignment.Top }) {
+      Stack({ alignContent: Alignment.Top }) {
+        Image(WeatherTheme.getBackgroundResource(this.visualState, this.hour))
+          .width('100%').height('100%').objectFit(ImageFit.Cover)
+        if (this.hasBundledCityBackground || this.cityBackgroundUrl) {
+          Image(this.hasBundledCityBackground ? this.cityBackgroundResource : this.cityBackgroundUrl)
+            .width('100%').height('100%').objectFit(ImageFit.Cover)
+            .brightness(WeatherTheme.getBackgroundBrightness(this.visualState))
+        }
+        Column().width('100%').height('100%')
+          .backgroundColor(WeatherTheme.getWeatherOverlay(this.visualState, this.hour))
+        // Hide the blurred skyline baked into legacy portrait photos; the
+        // lower, sharp city remains visible beneath the procedural sky layers.
+        Column().width('100%').height('100%')
+          .linearGradient({ direction: GradientDirection.Bottom,
+            colors: [[this.themeColors.skyTop, 0], [this.themeColors.skyTop, 0.37],
+              ['rgba(0,0,0,0)', 0.70]] })
+        if (WeatherTheme.shouldShowCloudLayer(this.visualState)) {
+          Image($r('app.media.weather_layer_clouds'))
+            .width('150%').height('110%').objectFit(ImageFit.Cover)
+            .opacity(WeatherTheme.getCloudOpacity(this.visualState)).blendMode(BlendMode.SCREEN)
+            .translate({ x: (this.cloudPhase - 0.5) * this.sceneWidth * 0.4 })
+        }
+        if (WeatherTheme.shouldShowRainLayer(this.visualState)) {
+          ForEach([0, 1], (tile: number) => {
+            Image($r('app.media.weather_layer_rain'))
+              .width('100%').height(this.sceneHeight()).objectFit(ImageFit.Fill)
+              .opacity(this.visualState === WeatherVisualState.STORM ? 0.52 : 0.38)
+              .blendMode(BlendMode.SCREEN)
+              .translate({ y: (this.rainPhase - tile) * this.sceneHeight() })
+          })
+          Image($r('app.media.weather_layer_glass_rain'))
+            .width('100%').height('100%').objectFit(ImageFit.Cover)
+            .opacity(0.15).blendMode(BlendMode.SCREEN)
+          Image($r('app.media.weather_layer_glass_rain'))
+            .width('112%').height('120%').objectFit(ImageFit.Cover)
+            .opacity(0.32 * Math.min(1, this.glassPhase * 10, (1 - this.glassPhase) * 10))
+            .blendMode(BlendMode.SCREEN).translate({ y: this.glassPhase * 70 - 30 })
+        }
+        Column().width('100%').height('100%')
+          .linearGradient({
+            direction: GradientDirection.Bottom,
+            colors: [[this.themeColors.scrimTop, 0], ['rgba(12,32,48,0.04)', 0.48],
+              [this.themeColors.pageBackground, 1]]
           })
       }
-
-      if (WeatherTheme.shouldShowRainLayer(this.visualState)) {
-        Image($r('app.media.weather_layer_rain'))
-          .width('112%')
-          .height('126%')
-          .objectFit(ImageFit.Cover)
-          .opacity(this.visualState === WeatherVisualState.STORM ? 0.62 : 0.46)
-          .blendMode(BlendMode.SCREEN)
-          .translate({ y: this.motionEnabled ? this.rainOffset : 0 })
-          .animation({
-            duration: this.visualState === WeatherVisualState.STORM ? 1100 : 1700,
-            curve: Curve.Linear,
-            iterations: this.motionEnabled ? -1 : 0,
-            playMode: PlayMode.Normal
-          })
-      }
-
-      Column()
-        .width('100%')
-        .height('100%')
-        .linearGradient({
-          direction: GradientDirection.Bottom,
-          colors: [[this.themeColors.scrimTop, 0], ['rgba(0,0,0,0.08)', 0.38], [this.themeColors.scrimBottom, 1]]
-        })
-
-      if (WeatherTheme.shouldShowRainLayer(this.visualState)) {
-        Image($r('app.media.weather_layer_glass_rain'))
-          .width('106%')
-          .height('110%')
-          .objectFit(ImageFit.Cover)
-          .opacity(this.visualState === WeatherVisualState.STORM ? 0.48 : 0.34)
-          .blendMode(BlendMode.SCREEN)
-          .translate({ y: this.motionEnabled ? this.glassOffset : 0 })
-          .animation({
-            duration: 18000,
-            curve: Curve.EaseInOut,
-            iterations: this.motionEnabled ? -1 : 0,
-            playMode: PlayMode.Alternate
-          })
-      }
-
-      if (this.visualState === WeatherVisualState.STORM) {
-        Column()
-          .width('100%')
-          .height('100%')
-          .backgroundColor('rgba(33,35,76,0.18)')
-      }
+      .width('100%').height(this.sceneHeight()).clip(true)
     }
-    .width('100%')
-    .height('100%')
+    .width('100%').height('100%').backgroundColor(this.themeColors.pageBackground)
+    .onAreaChange((_old: Area, area: Area) => { this.sceneWidth = Number(area.width) })
+    .hitTestBehavior(HitTestMode.None).accessibilityLevel('no-hide-descendants')
   }
 }

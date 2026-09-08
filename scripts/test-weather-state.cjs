@@ -137,4 +137,3 @@ test('sunrise and sunset use their minute boundaries', () => {
   assert.equal(resolve(19.1), 'clear_day');
   assert.equal(resolve(19 + 13 / 60), 'clear_night');
 });
-

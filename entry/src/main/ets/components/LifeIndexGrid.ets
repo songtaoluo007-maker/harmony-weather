@@ -7,52 +7,66 @@ export struct LifeIndexGrid {
   @Prop lifeIndex: LifeIndex[] = []
   @Prop themeColors: ThemeColors = new ThemeColors()
 
+  private featured(): LifeIndex[] {
+    return this.lifeIndex.filter((item: LifeIndex) =>
+      item.iconKey === 'clothing' || item.iconKey === 'uv' || item.iconKey === 'sport')
+  }
+
+  private remaining(): LifeIndex[] {
+    return this.lifeIndex.filter((item: LifeIndex) =>
+      item.iconKey !== 'clothing' && item.iconKey !== 'uv' && item.iconKey !== 'sport')
+  }
+
+  private illustration(key: string): Resource {
+    if (key === 'clothing') return $r('app.media.life_clothing')
+    if (key === 'uv') return $r('app.media.life_uv')
+    return $r('app.media.life_sport')
+  }
+
+  private showDetail(item: LifeIndex): void {
+    this.getUIContext().showAlertDialog({
+      title: `${item.name} · ${item.brief}`, message: item.detail,
+      confirm: { value: '知道了', action: () => {} }
+    })
+  }
+
   build() {
-    Column() {
-      Text('生活指数')
-        .fontSize(20)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(this.themeColors.textColor)
-        .alignSelf(ItemAlign.Start)
-        .margin({ bottom: 16 })
-
-      Scroll() {
-        Row() {
-          ForEach(this.lifeIndex, (item: LifeIndex, index: number) => {
-            Column() {
-              Image(lifeIconResource(item.iconKey))
-                .width(34)
-                .height(34)
-                .fillColor(index === 1 ? this.themeColors.warmAccent : this.themeColors.accent)
-
-              Text(item.name)
-                .fontSize(12)
-                .fontColor(this.themeColors.textSecondary)
-                .margin({ top: 10 })
-
-              Text(item.brief)
-                .fontSize(14)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(this.themeColors.textColor)
-                .margin({ top: 4 })
-                .maxLines(1)
-            }
-            .width(92)
-            .height(116)
-            .justifyContent(FlexAlign.Center)
-            .border({ width: { right: index < this.lifeIndex.length - 1 ? 1 : 0 }, color: this.themeColors.divider })
-            .onClick(() => {
-              this.getUIContext().getPromptAction().showToast({ message: `${item.name}：${item.detail}`, duration: 2200 })
-            })
-            .accessibilityText(`${item.name}${item.brief}，${item.detail}`)
-          }, (item: LifeIndex, index: number) => `${index}_${item.name}`)
-        }
-      }
-      .width('100%')
-      .scrollable(ScrollDirection.Horizontal)
-      .scrollBar(BarState.Off)
+    Column({ space: 16 }) {
+      Row() {
+        Text('生活气象').fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
+        Blank()
+        Text('从天气，到生活').fontSize(11).fontColor(this.themeColors.textTertiary)
+      }.width('100%')
+      Row({ space: 8 }) {
+        ForEach(this.featured(), (item: LifeIndex) => {
+          Column({ space: 4 }) {
+            Image(this.illustration(item.iconKey)).width('100%').aspectRatio(1).objectFit(ImageFit.Contain)
+            Text(item.name).fontSize(11).fontColor(this.themeColors.textSecondary)
+            Text(item.brief).fontSize(15).fontWeight(FontWeight.Medium)
+              .fontColor(this.themeColors.textColor).maxLines(2).textAlign(TextAlign.Center)
+          }
+          .layoutWeight(1).padding({ bottom: 16 })
+          .backgroundColor('#142B3D').borderRadius(20).clip(true)
+          .onClick(() => this.showDetail(item))
+          .accessibilityText(`${item.name}，${item.brief}，点击查看建议`)
+        }, (item: LifeIndex) => item.iconKey)
+      }.width('100%').alignItems(VerticalAlign.Top)
+      Flex({ wrap: FlexWrap.Wrap }) {
+        ForEach(this.remaining(), (item: LifeIndex) => {
+          Row({ space: 10 }) {
+            Image(lifeIconResource(item.iconKey)).width(24).height(24).fillColor(this.themeColors.accent)
+            Column({ space: 4 }) {
+              Text(item.name).fontSize(11).fontColor(this.themeColors.textSecondary)
+              Text(item.brief).fontSize(14).fontColor(this.themeColors.textColor)
+            }.alignItems(HorizontalAlign.Start)
+          }
+          .width('50%').constraintSize({ minHeight: 64 })
+          .onClick(() => this.showDetail(item))
+          .accessibilityText(`${item.name}，${item.brief}，点击查看建议`)
+        }, (item: LifeIndex) => item.iconKey)
+      }.width('100%')
     }
-    .width('100%')
-    .padding({ top: 20, bottom: 18 })
+    .width('100%').padding({ top: 24, bottom: 16 })
+    .border({ width: { bottom: 0.5 }, color: this.themeColors.divider })
   }
 }

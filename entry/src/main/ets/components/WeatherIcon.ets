@@ -1,11 +1,11 @@
 export function weatherIconResource(text: string): Resource {
-  if (text.includes('雷')) return $r('app.media.weather_lightning')
-  if (text.includes('雨')) return $r('app.media.weather_rainy')
-  if (text.includes('雪')) return $r('app.media.weather_snowy')
-  if (text.includes('雾') || text.includes('霾') || text.includes('沙')) return $r('app.media.weather_fog')
-  if (text.includes('多云')) return $r('app.media.weather_partly_cloudy')
-  if (text.includes('阴')) return $r('app.media.weather_cloudy')
-  return $r('app.media.weather_sunny')
+  if (text.includes('雷')) return $r('app.media.meteo_thunderstorms_rain')
+  if (text.includes('雨')) return $r('app.media.meteo_rain')
+  if (text.includes('雪')) return $r('app.media.meteo_snow')
+  if (text.includes('雾') || text.includes('霾') || text.includes('沙')) return $r('app.media.meteo_fog')
+  if (text.includes('多云')) return $r('app.media.meteo_partly_cloudy_day')
+  if (text.includes('阴')) return $r('app.media.meteo_cloudy')
+  return $r('app.media.meteo_clear_day')
 }
 
 export function weatherIconColor(text: string, fallback: string): string {
@@ -31,12 +31,18 @@ export struct WeatherIcon {
   @Prop text: string = '晴'
   @Prop iconSize: number = 28
   @Prop fallbackColor: string = '#FFFFFF'
+  @Prop isNight: boolean = false
+
+  private icon(): Resource {
+    if (this.isNight && this.text.includes('晴')) return $r('app.media.meteo_clear_night')
+    if (this.isNight && this.text.includes('多云')) return $r('app.media.meteo_partly_cloudy_night')
+    return weatherIconResource(this.text)
+  }
 
   build() {
-    Image(weatherIconResource(this.text))
-      .width(this.iconSize)
-      .height(this.iconSize)
-      .fillColor(weatherIconColor(this.text, this.fallbackColor))
+    Image(this.icon())
+      .width(this.iconSize * 1.25)
+      .height(this.iconSize * 1.25)
       .objectFit(ImageFit.Contain)
       .accessibilityText(`${this.text}天气`)
   }

@@ -29,10 +29,19 @@
 ## 视觉与资源
 
 - 选定视觉稿：[design/originos-weather-target.png](design/originos-weather-target.png)
-- 深圳日间实现截图：[design/implementation-shenzhen-day-v2.jpeg](design/implementation-shenzhen-day-v2.jpeg)
-- 北京切换截图：[design/implementation-beijing-dynamic.jpeg](design/implementation-beijing-dynamic.jpeg)
-- 雨景动态预览：[design/rain-dynamic-preview.gif](design/rain-dynamic-preview.gif)
+- 2026-09 原生界面总览：[design/redesign-overview.jpg](design/redesign-overview.jpg)
+- 深圳首页：[design/redesign-home-final.jpeg](design/redesign-home-final.jpeg)
+- 生活气象：[design/redesign-life-final.jpeg](design/redesign-life-final.jpeg)
+- 雨景实际动态采样：[design/redesign-rain-motion.gif](design/redesign-rain-motion.gif)
+- 本轮设计说明与后续优先级：[docs/ui-redesign-2026-09.md](docs/ui-redesign-2026-09.md)
+- 实际验证范围与限制：[design-qa.md](design-qa.md)
 - 城市影像会按稳定城市 ID 自动切换；当前配置中的 15 个城市均已离线打包。
 - 城市列表变化后，运行 `scripts/fetch_city_backgrounds.py` 可一次性更新全部城市影像和 ArkTS 映射，无需逐城制作。
 - 城市影像来源见 [CITY_BACKGROUND_SOURCES.md](CITY_BACKGROUND_SOURCES.md)。
 - 图标来源和许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+
+## 状态测试
+
+使用 DevEco 自带 Node 执行 `node --test scripts/test-weather-state.cjs`。脚本通过
+DevEco TypeScript 加载真实模型与 Service，只替换平台 I/O；这不等同于真实 API
+联调。若使用外部 Node，请将 `DEVECO_STUDIO_HOME` 指向 DevEco 安装目录。

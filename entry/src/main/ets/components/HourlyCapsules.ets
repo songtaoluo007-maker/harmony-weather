@@ -4,78 +4,59 @@ import { WeatherIcon } from './WeatherIcon'
 
 @Component
 export struct HourlyCapsules {
-  @Prop hourly: HourlyWeather[] = []
+  @Prop @Watch('resetSelection') hourly: HourlyWeather[] = []
   @Prop themeColors: ThemeColors = new ThemeColors()
   @Prop unit: string = 'c'
   @State selectedIndex: number = 0
+
+  private resetSelection(): void { this.selectedIndex = 0 }
 
   private temperature(value: number): number {
     return this.unit === 'f' ? Math.round(value * 9 / 5 + 32) : value
   }
 
+  private summary(): string {
+    const item: HourlyWeather | undefined = this.hourly[this.selectedIndex]
+    return item ? `${item.text} · 降水 ${item.pop}%` : '暂无小时预报'
+  }
+
   build() {
-    Column() {
+    Column({ space: 14 }) {
       Row() {
         Text('逐小时预报')
-          .fontSize(18)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.themeColors.textColor)
-        Blank()
-        Text(this.hourly.length > 0 && this.hourly[0].pop > 0 ? `降水 ${this.hourly[0].pop}%` : '降水概率较低')
-          .fontSize(12)
-          .fontColor(this.themeColors.textSecondary)
+          .fontSize(16).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
+        Blank().width(10)
+        Text(this.summary()).fontSize(11).fontColor(this.themeColors.textSecondary)
+          .layoutWeight(1).textAlign(TextAlign.End).maxLines(2)
       }
       .width('100%')
-      .margin({ bottom: 10 })
-
       Scroll() {
-        Row() {
+        Row({ space: 2 }) {
           ForEach(this.hourly, (item: HourlyWeather, index: number) => {
-            Column() {
-              Text(index === 0 ? '现在' : item.time)
-                .fontSize(12)
-                .fontColor(this.themeColors.textSecondary)
-                .maxLines(1)
-
-              WeatherIcon({
-                text: item.text,
-                iconSize: 24,
-                fallbackColor: this.themeColors.textColor
-              })
-                .margin({ top: 8 })
-
+            Column({ space: 8 }) {
+              Text(item.time).fontSize(11)
+                .fontColor(index === this.selectedIndex ? '#FFFFFF' : this.themeColors.textSecondary).maxLines(1)
+              WeatherIcon({ text: item.text, iconSize: 25, fallbackColor: this.themeColors.textColor,
+                isNight: this.isNightHour(item.time) })
               Text(`${this.temperature(item.temp)}°`)
-                .fontSize(16)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(this.themeColors.textColor)
-                .margin({ top: 7 })
-
-              if (item.pop > 0) {
-                Text(`${item.pop}%`)
-                  .fontSize(10)
-                  .fontColor(this.themeColors.accent)
-                  .margin({ top: 4 })
-              }
+                .fontSize(17).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
             }
-            .width(58)
-            .height(84)
-            .justifyContent(FlexAlign.Center)
-            .borderRadius(18)
-            .backgroundColor(index === this.selectedIndex ? this.themeColors.strongTint : 'transparent')
-            .onClick(() => {
-              this.selectedIndex = index
-            })
-            .accessibilityText(`${item.time}${item.text}${item.temp}度`)
+            .width(51).height(99).justifyContent(FlexAlign.Center).borderRadius(18)
+            .backgroundColor(index === this.selectedIndex ? 'rgba(255,255,255,0.11)' : Color.Transparent)
+            .border({ width: 0.6, color: index === this.selectedIndex ? 'rgba(255,255,255,0.20)' : Color.Transparent })
+            .onClick(() => { this.selectedIndex = index })
+            .accessibilityText(`${item.time}，${item.text}，${this.temperature(item.temp)}度，降水概率${item.pop}%，${index === this.selectedIndex ? '已选中' : '点击查看'}`)
           }, (item: HourlyWeather, index: number) => `${index}_${item.time}`)
         }
       }
-      .width('100%')
-      .scrollable(ScrollDirection.Horizontal)
-      .scrollBar(BarState.Off)
+      .width('100%').scrollable(ScrollDirection.Horizontal).scrollBar(BarState.Off)
     }
-    .width('100%')
-    .padding({ left: 20, right: 20, top: 14, bottom: 14 })
-    .backgroundColor(this.themeColors.sectionTint)
-    .borderRadius(24)
+    .width('100%').padding({ top: 20, bottom: 18 })
+    .border({ width: { bottom: 0.5 }, color: this.themeColors.divider })
+  }
+
+  private isNightHour(time: string): boolean {
+    const hour: number = time === '现在' ? new Date().getHours() : Number.parseInt(time)
+    return hour >= 19 || hour < 6
   }
 }

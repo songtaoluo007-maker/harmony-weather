@@ -2,11 +2,13 @@ import { TimeOfDay, WeatherVisualState } from '../models/WeatherModels'
 
 export class ThemeColors {
   textColor: string = '#FFFFFF'
-  textSecondary: string = 'rgba(255,255,255,0.76)'
-  textTertiary: string = 'rgba(255,255,255,0.54)'
-  sectionTint: string = 'rgba(7,64,105,0.10)'
+  textSecondary: string = 'rgba(255,255,255,0.80)'
+  textTertiary: string = 'rgba(255,255,255,0.66)'
+  pageBackground: string = '#103B55'
+  skyTop: string = '#3D7DA9'
+  sectionTint: string = 'rgba(255,255,255,0.06)'
   strongTint: string = 'rgba(4,47,82,0.34)'
-  divider: string = 'rgba(255,255,255,0.20)'
+  divider: string = 'rgba(255,255,255,0.16)'
   scrimTop: string = 'rgba(0,38,72,0.08)'
   scrimBottom: string = 'rgba(0,38,72,0.52)'
   accent: string = '#55C7FF'
@@ -20,22 +22,17 @@ export class WeatherTheme {
   static getColors(state: WeatherVisualState): ThemeColors {
     const colors: ThemeColors = new ThemeColors()
     if (state === WeatherVisualState.HAZE || state === WeatherVisualState.SNOW) {
-      colors.textColor = '#17324A'
-      colors.textSecondary = 'rgba(23,50,74,0.72)'
-      colors.textTertiary = 'rgba(23,50,74,0.50)'
-      colors.sectionTint = 'rgba(255,255,255,0.24)'
-      colors.strongTint = 'rgba(255,255,255,0.58)'
-      colors.divider = 'rgba(23,50,74,0.16)'
-      colors.scrimTop = 'rgba(236,245,250,0.08)'
-      colors.scrimBottom = 'rgba(220,234,243,0.58)'
-      colors.accent = '#1688C9'
-      colors.warmAccent = '#E68A00'
-      colors.isLight = true
+      colors.pageBackground = '#293C45'
+      colors.skyTop = '#677E86'
+      colors.scrimTop = 'rgba(24,43,54,0.30)'
+      colors.scrimBottom = '#293C45'
       return colors
     }
     if (state === WeatherVisualState.CLEAR_NIGHT || state === WeatherVisualState.CLOUDY_NIGHT ||
       state === WeatherVisualState.RAIN || state === WeatherVisualState.STORM) {
       colors.sectionTint = 'rgba(8,29,62,0.20)'
+      colors.pageBackground = '#101F30'
+      colors.skyTop = '#172E4A'
       colors.strongTint = 'rgba(5,22,50,0.56)'
       colors.scrimTop = 'rgba(3,18,48,0.12)'
       colors.scrimBottom = 'rgba(3,18,48,0.76)'
@@ -88,7 +85,7 @@ export class WeatherTheme {
     if (state === WeatherVisualState.STORM) return 0.34
     if (state === WeatherVisualState.RAIN) return 0.27
     if (state === WeatherVisualState.CLOUDY_DAY || state === WeatherVisualState.CLOUDY_NIGHT) return 0.22
-    return 0.09
+    return 0.20
   }
 
   static shouldShowRainLayer(state: WeatherVisualState): boolean {
