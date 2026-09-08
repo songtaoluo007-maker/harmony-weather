@@ -9,9 +9,16 @@ const ts = require(path.join(studio, 'tools/hvigor/hvigor/node_modules/typescrip
 const root = path.resolve(__dirname, '..');
 const sourceRoot = path.join(root, 'entry/src/main/ets');
 
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
 function fixture(provider = 'qweather') {
   const stores = new Map();
   let failing = false;
+  let nextCacheFlush = null;
   const prefs = {
     getPreferences: async (_context, { name }) => {
       if (failing) throw new Error('disk unavailable');
@@ -20,7 +27,14 @@ function fixture(provider = 'qweather') {
       return {
         get: async (key, fallback) => data.has(key) ? data.get(key) : fallback,
         put: async (key, value) => data.set(key, value),
-        flush: async () => {}
+        clear: async () => data.clear(),
+        flush: async () => {
+          if (name !== 'weather_cache' || !nextCacheFlush) return;
+          const gate = nextCacheFlush;
+          nextCacheFlush = null;
+          gate.entered.resolve();
+          await gate.completion.promise;
+        }
       };
     }
   };
@@ -65,8 +79,46 @@ function fixture(provider = 'qweather') {
   return { service, AppSettings, context, models: modules.models, stores,
     OpenMeteoService: modules.openMeteo.OpenMeteoService, theme: load('theme/WeatherTheme').WeatherTheme,
     presentation: presentation.WeatherPresentation, snow: snow.SnowField,
-    failStorage: () => { failing = true; } };
+    failStorage: () => { failing = true; },
+    delayNextCacheFlush: () => {
+      assert.equal(nextCacheFlush, null, 'the previous flush gate must be consumed first');
+      const gate = { entered: deferred(), completion: deferred() };
+      nextCacheFlush = gate;
+      return { entered: gate.entered.promise,
+        finish: () => gate.completion.resolve(),
+        fail: () => gate.completion.reject(new Error('flush failed')) };
+    } };
 }
+
+// Execute the real details fields/lifecycle method, excluding only ArkUI rendering syntax.
+function weatherDetails(f) {
+  const filename = path.join(sourceRoot, 'pages/WeatherDetails.ets');
+  const source = fs.readFileSync(filename, 'utf8');
+  const start = source.indexOf('struct WeatherDetails');
+  const end = source.indexOf('  private temperature(');
+  assert.ok(start >= 0 && end > start, 'details lifecycle extraction boundaries must exist');
+  const code = source.slice(start, end).replace('struct WeatherDetails', 'class WeatherDetails')
+    .replace(/@State\s+/g, '') + '}\nmodule.exports = WeatherDetails;';
+  const result = ts.transpileModule(code, {
+    compilerOptions: { target: ts.ScriptTarget.ES2020 }, reportDiagnostics: true
+  });
+  assert.equal((result.diagnostics || []).length, 0);
+  const module = { exports: {} };
+  vm.runInNewContext(result.outputText, { module, WeatherData: f.models.WeatherData,
+    WeatherService: { getInstance: () => f.service } }, { filename });
+  const page = new module.exports();
+  page.aboutToAppear();
+  return page;
+}
+
+function liveWeather(f, temp) {
+  const data = new f.models.WeatherData();
+  data.source = 'openmeteo'; data.lastUpdate = Date.now(); data.current.temp = temp;
+  return data;
+}
+
+// Yield one event-loop turn, not a wall-clock delay, to detect reads escaping a held flush.
+const nextTurn = () => new Promise(resolve => setImmediate(resolve));
 
 test('UTF-8 demo data is explicitly marked and preserves Chinese city names', async () => {
   const f = fixture('mock');
@@ -438,4 +490,151 @@ test('old cached night placeholders never become a fabricated daytime copy', () 
   }
   const real = f.models.WeatherData.fromMock({ daily: [{ textDay: '晴', textNight: '小雨' }] });
   assert.equal(real.daily[0].textNight, '小雨');
+});
+
+test('product status keeps offline and sample identity without a developer badge for live weather', () => {
+  const f = fixture(); const data = new f.models.WeatherData();
+  assert.equal(typeof f.presentation.status, 'function');
+  data.source = 'openmeteo'; assert.equal(f.presentation.status(data), '');
+  data.isOffline = true; assert.equal(f.presentation.status(data), '离线数据');
+  data.source = 'mock'; assert.equal(f.presentation.status(data), '示例数据');
+});
+
+test('clearing weather cache removes all weather data but preserves cities and settings', async () => {
+  const f = fixture('mock'); const data = await f.service.loadWeather(f.context);
+  await f.service.selectCity(f.context, '101010100');
+  const settings = new f.AppSettings(); settings.unit = 'f';
+  await f.service.saveSettings(f.context, settings);
+  assert.equal(typeof f.service.clearWeatherCache, 'function');
+  assert.equal(await f.service.clearWeatherCache(f.context), true);
+  assert.equal(f.stores.get('weather_cache').size, 0);
+  assert.equal(f.service.peekLatestData(), null);
+  assert.equal(f.service.cache.size, 0);
+  assert.equal(f.service.getCurrentCity().id, '101010100');
+  assert.equal(f.stores.get('weather_preferences').get('temperature_unit'), 'f');
+});
+
+test('failed cache clearing reports failure and retains the active weather', async () => {
+  const f = fixture('mock'); const data = await f.service.loadWeather(f.context);
+  f.failStorage();
+  assert.equal(typeof f.service.clearWeatherCache, 'function');
+  assert.equal(await f.service.clearWeatherCache(f.context), false);
+  assert.equal(f.service.peekLatestData(), data);
+});
+
+test('a request begun before cache clearing cannot restore the cleared persistent cache', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  let finish; let started;
+  const entered = new Promise(resolve => { started = resolve; });
+  const data = new f.models.WeatherData(); data.source = 'openmeteo';
+  f.OpenMeteoService.prototype.fetch = () => { started(); return new Promise(resolve => { finish = resolve; }); };
+  const loading = f.service.loadWeather(f.context, undefined, true);
+  await entered;
+  assert.equal(typeof f.service.clearWeatherCache, 'function');
+  assert.equal(await f.service.clearWeatherCache(f.context), true);
+  finish(data); await loading;
+  assert.equal(f.stores.get('weather_cache').size, 0);
+  assert.equal(f.service.cache.size, 0);
+  assert.equal(f.service.peekLatestData(), null);
+});
+
+test('a fresh-cache read waits for clear flush instead of returning pre-clear memory', async () => {
+  const f = fixture('openmeteo');
+  f.OpenMeteoService.prototype.fetch = async () => liveWeather(f, 19);
+  await f.service.loadWeather(f.context);
+  const gate = f.delayNextCacheFlush();
+  const clearing = f.service.clearWeatherCache(f.context);
+  await gate.entered;
+  f.OpenMeteoService.prototype.fetch = async () => liveWeather(f, 27);
+  let settled = false;
+  const loading = f.service.loadWeather(f.context).finally(() => { settled = true; });
+  try {
+    await nextTurn();
+    assert.equal(settled, false, 'a weather read must not escape a pending clear');
+  } finally { gate.finish(); await clearing; await loading; }
+  const data = await loading;
+  assert.equal(data.current.temp, 27);
+  assert.equal(f.service.peekLatestData(), data);
+  assert.equal(weatherDetails(f).data.current.temp, 27);
+});
+
+test('an empty-cache load during clear retains a live source for the actual details page', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  const gate = f.delayNextCacheFlush();
+  const clearing = f.service.clearWeatherCache(f.context);
+  await gate.entered;
+  f.OpenMeteoService.prototype.fetch = async () => liveWeather(f, 27);
+  const loading = f.service.loadWeather(f.context);
+  // Let the broken implementation capture the old revision before releasing the flush.
+  await nextTurn();
+  gate.finish();
+  assert.equal(await clearing, true);
+  const data = await loading;
+  assert.equal(data.source, 'openmeteo');
+  const details = weatherDetails(f);
+  assert.equal(details.data.source, 'openmeteo', 'details must not fall back to an empty-source WeatherData');
+  assert.equal(details.data.current.temp, 27);
+  assert.equal(f.service.peekLatestData(), data);
+  assert.equal(f.service.cache.get(data.cityId), data);
+  assert.equal(JSON.parse(f.stores.get('weather_cache').get(`openmeteo_city_${data.cityId}`)).current.temp, 27);
+});
+
+test('a failed clear flush returns false, preserves memory and releases waiting weather reads', async () => {
+  const f = fixture('openmeteo');
+  f.OpenMeteoService.prototype.fetch = async () => liveWeather(f, 19);
+  const previous = await f.service.loadWeather(f.context);
+  const revision = f.service.cacheRevision;
+  const gate = f.delayNextCacheFlush();
+  const clearing = f.service.clearWeatherCache(f.context);
+  await gate.entered;
+  let settled = false;
+  const loading = f.service.loadWeather(f.context).finally(() => { settled = true; });
+  try {
+    await nextTurn();
+    assert.equal(settled, false, 'read must wait for the clear outcome, including failure');
+  } finally { gate.fail(); await clearing; await loading; }
+  assert.equal(await clearing, false);
+  assert.equal(await loading, previous);
+  assert.equal(f.service.peekLatestData(), previous);
+  assert.equal(f.service.cache.get(previous.cityId), previous);
+  assert.equal(f.service.cacheRevision, revision);
+  assert.equal(await f.service.clearWeatherCache(f.context), true, 'failed flush must not poison the queue');
+  f.OpenMeteoService.prototype.fetch = async () => liveWeather(f, 27);
+  assert.equal((await f.service.loadWeather(f.context)).current.temp, 27);
+});
+
+test('persistent cache reads wait for a queued clear flush before resolving', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  const gate = f.delayNextCacheFlush();
+  const clearing = f.service.clearWeatherCache(f.context);
+  await gate.entered;
+  let settled = false;
+  const reading = f.service.readPersistentCache(f.context, '101280601').finally(() => { settled = true; });
+  try {
+    await nextTurn();
+    assert.equal(settled, false, 'persistent fallback must not observe a partial clear');
+  } finally { gate.finish(); await clearing; await reading; }
+  assert.equal(await reading, null);
+});
+
+test('a waiting load also waits for a second clear appended to the cache queue', async () => {
+  const f = fixture('openmeteo'); await f.service.initialize(f.context);
+  const first = f.delayNextCacheFlush();
+  const clearFirst = f.service.clearWeatherCache(f.context);
+  await first.entered;
+  let fetched = false;
+  f.OpenMeteoService.prototype.fetch = async () => { fetched = true; return liveWeather(f, 27); };
+  const loading = f.service.loadWeather(f.context);
+  await nextTurn();
+  const second = f.delayNextCacheFlush();
+  const clearSecond = f.service.clearWeatherCache(f.context);
+  first.finish();
+  await second.entered;
+  try {
+    await nextTurn();
+    assert.equal(fetched, false, 'revision must be captured after all queued clears');
+  } finally { second.finish(); await clearFirst; await clearSecond; await loading; }
+  const data = await loading;
+  assert.equal(f.service.peekLatestData(), data);
+  assert.equal(weatherDetails(f).data.source, 'openmeteo');
 });

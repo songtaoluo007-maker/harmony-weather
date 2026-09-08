@@ -1,0 +1,25 @@
+{
+  "frames": 18,
+  "frame_duration_ms": [
+    844,
+    860,
+    1500,
+    890,
+    860,
+    875,
+    843,
+    828,
+    1422,
+    828,
+    829,
+    843,
+    797,
+    828,
+    875,
+    828,
+    813,
+    813
+  ],
+  "captured_span_seconds": 15.563,
+  "note": "Native emulator screen captures. Playback timings match capture intervals; repeated GIF loop is not seamless."
+}

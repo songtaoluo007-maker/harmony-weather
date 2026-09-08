@@ -3,6 +3,10 @@
     "pages/Index",
     "pages/CitySelector",
     "pages/Settings",
-    "pages/WeatherDetails"
+    "pages/WeatherDetails",
+    "pages/About",
+    "pages/Privacy",
+    "pages/News",
+    "pages/NewsReader"
   ]
 }

@@ -118,6 +118,8 @@ export class WeatherService {
   private latestData: WeatherData | null = null
   private settings: AppSettings = new AppSettings()
   private hiddenCityIds: string[] = []
+  private cacheRevision: number = 0
+  private cacheQueue: Promise<void> = Promise.resolve()
 
   static getInstance(): WeatherService {
     if (!WeatherService.instance) WeatherService.instance = new WeatherService()
@@ -257,9 +259,30 @@ export class WeatherService {
     return this.latestData
   }
 
+  async clearWeatherCache(context: common.UIAbilityContext): Promise<boolean> {
+    const operation: Promise<void> = this.cacheQueue.then(async () => {
+      const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_cache' })
+      await store.clear()
+      await store.flush()
+      this.cacheRevision++
+      this.cache.clear()
+      this.latestData = null
+    })
+    this.cacheQueue = operation.catch(() => {})
+    try { await operation; return true } catch (error) { return false }
+  }
+
   async loadWeather(context: common.UIAbilityContext, cityId?: string, forceRefresh: boolean = false): Promise<WeatherData> {
     await this.initialize(context)
+    // Read memory and capture the revision only after queued clears have settled.
+    // Recheck the tail in case another clear was queued while we waited; network I/O stays outside the queue.
+    while (true) {
+      const pending: Promise<void> = this.cacheQueue
+      await pending
+      if (pending === this.cacheQueue) break
+    }
     const targetId: string = cityId ?? this.currentCityId
+    const revision: number = this.cacheRevision
     const city: CityInfo = this.getCityList().find((item: CityInfo) => item.id === targetId) ?? this.getCurrentCity()
     const cached: WeatherData | undefined = this.cache.get(targetId)
     const cacheMinutes: number = this.settings.refreshMinutes || this.config?.cacheMinutes || 30
@@ -277,14 +300,16 @@ export class WeatherService {
       try {
         const live: WeatherData = provider === 'openmeteo' ? await new OpenMeteoService().fetch(city) : await this.fetchFromAPI(city)
         if (provider === 'openmeteo') live.lifeIndex = this.getDefaultLifeIndex(live.current)
-        await this.savePersistentCache(context, live)
-        this.cache.set(targetId, live)
-        this.latestData = live
+        await this.savePersistentCache(context, live, revision)
+        if (revision === this.cacheRevision) {
+          this.cache.set(targetId, live)
+          this.latestData = live
+        }
         return live
       } catch (error) {
         console.error('实时天气请求失败: ' + JSON.stringify(error))
         const persisted: WeatherData | null = await this.readPersistentCache(context, targetId)
-        if (persisted && persisted.source === provider) {
+        if (persisted && persisted.source === provider && revision === this.cacheRevision) {
           persisted.isOffline = true
           this.cache.set(targetId, persisted)
           this.latestData = persisted
@@ -296,13 +321,15 @@ export class WeatherService {
 
     try {
       const mock: WeatherData = await this.loadMockData(context, city)
-      await this.savePersistentCache(context, mock)
-      this.cache.set(targetId, mock)
-      this.latestData = mock
+      await this.savePersistentCache(context, mock, revision)
+      if (revision === this.cacheRevision) {
+        this.cache.set(targetId, mock)
+        this.latestData = mock
+      }
       return mock
     } catch (error) {
       const persisted: WeatherData | null = await this.readPersistentCache(context, targetId)
-      if (persisted && persisted.source === 'mock') {
+      if (persisted && persisted.source === 'mock' && revision === this.cacheRevision) {
         persisted.isOffline = true
         this.latestData = persisted
         return persisted
@@ -491,18 +518,27 @@ export class WeatherService {
     return data
   }
 
-  private async savePersistentCache(context: common.UIAbilityContext, data: WeatherData): Promise<void> {
-    try {
+  private async savePersistentCache(context: common.UIAbilityContext, data: WeatherData, revision: number = this.cacheRevision): Promise<void> {
+    const operation: Promise<void> = this.cacheQueue.then(async () => {
+      if (revision !== this.cacheRevision) return
       const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_cache' })
       await store.put(`${data.source}_city_${data.cityId}`, JSON.stringify(data))
       await store.flush()
-    } catch (error) {
+    })
+    this.cacheQueue = operation.catch(() => {})
+    try { await operation } catch (error) {
       console.warn('写入天气缓存失败: ' + JSON.stringify(error))
     }
   }
 
   private async readPersistentCache(context: common.UIAbilityContext, cityId: string): Promise<WeatherData | null> {
     try {
+      // Fallback reads must not observe a clear before its flush outcome is known.
+      while (true) {
+        const pending: Promise<void> = this.cacheQueue
+        await pending
+        if (pending === this.cacheQueue) break
+      }
       const store: preferences.Preferences = await preferences.getPreferences(context, { name: 'weather_cache' })
       const raw: string = String(await store.get(`${this.getProvider()}_city_${cityId}`, ''))
       if (!raw) return null
@@ -541,10 +577,10 @@ export class WeatherService {
     return [
       this.life('穿衣', 'clothing', current.temp >= 26 ? '舒适' : '薄外套', '根据体感温度及时增减衣物'),
       this.life('紫外线', 'uv', current.uv, '外出请按紫外线等级做好防晒'),
-      this.life('洗车', 'car', current.precip > 0 ? '不适宜' : '参考预报', '本地生活建议：出发前请查看未来降水概率'),
-      this.life('旅游', 'travel', '暂无数据', '当前数据源未提供可靠的旅游指数。可参考逐日天气与降水预报规划行程；这里不生成适宜度评级。'),
-      this.life('感冒', 'cold', '暂无数据', '当前未接入可靠的感冒指数服务。温差不等于感冒风险，不据此生成健康风险评级。'),
-      this.life('温差', 'temperature', `${Math.max(0, current.high - current.low)}°`, '本地生活建议：根据昼夜温差增减衣物，不是健康风险预测'),
+      this.life('洗车', 'car', current.precip > 0 ? '不适宜' : '参考预报', '出发前请查看未来降水概率。'),
+      this.life('旅游', 'travel', '暂无数据', '旅游指数暂不可用，可查看逐日天气规划行程。'),
+      this.life('感冒', 'cold', '暂无数据', '感冒指数暂不可用。温差不能用于判断个人感冒风险。'),
+      this.life('温差', 'temperature', `${Math.max(0, current.high - current.low)}°`, '当日最高与最低气温之差。'),
       this.life('运动', 'sport', current.precip > 0 ? '室内为宜' : '较适宜', '结合空气质量选择运动强度')
     ]
   }

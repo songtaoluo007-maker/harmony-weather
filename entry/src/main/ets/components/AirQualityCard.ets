@@ -35,7 +35,7 @@ export struct AirQualityCard {
             .borderRadius(10).backgroundColor('rgba(156,223,176,0.12)')
         }
         Column({ space: 8 }) {
-          Text(this.air.advice).fontSize(12).fontColor(this.themeColors.textSecondary)
+          Text('空气指数').fontSize(12).fontColor(this.themeColors.textSecondary)
             .maxLines(2).lineHeight(18)
           Row({ space: 3 }) {
             ForEach(['#9CDFB0', '#EAD08A', '#EEAF80', '#F59291', '#BF9AD2', '#946583'], (color: string) => {
@@ -60,7 +60,7 @@ export struct AirQualityCard {
     .border({ width: { bottom: 0.5 }, color: this.themeColors.divider })
     .onClick(() => this.getUIContext().showAlertDialog({
       title: this.air.available ? `空气质量 · ${this.air.level}` : '空气质量暂不可用',
-      message: this.air.available ? `${this.air.standard} · ${this.air.advice}\n\n${WeatherPresentation.pollutants(this.air).map((item: PollutantValue) => `${item.label}：${item.value} ${item.unit}`).join('\n')}` : '天气服务暂未返回空气质量，没有使用模拟数值替代。',
+      message: this.air.available ? `${this.air.standard}\n\n${WeatherPresentation.pollutants(this.air).map((item: PollutantValue) => `${item.label}：${item.value} ${item.unit}`).join('\n')}` : '空气质量暂不可用，请稍后重试。',
       confirm: { value: '知道了', action: () => {} }
     }))
     .accessibilityText(this.air.available ? `${this.air.standard} 空气质量指数${this.air.aqi}，${this.air.level}，点击查看污染物详情` : '空气质量暂不可用')

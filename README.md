@@ -1,8 +1,13 @@
 # 原境天气（HarmonyOS）
 
-一款使用 ArkTS Stage 模型实现的现代动态天气应用。界面以沉浸式城市天气背景为核心，支持逐小时预报、15 日预报、空气质量、生活指数、城市管理、定位、离线缓存和显示设置。
+一款使用 ArkTS Stage 模型实现的现代动态天气应用。提供天气、资讯、设置三个入口，支持逐小时预报、15 日预报、空气质量、生活指数、城市管理、定位、离线缓存及官方原文在线阅读。
 
 背景由三部分实时合成：城市影像、天气/昼夜色彩层、动态天气层。晴天和多云时云层缓慢移动；雨天叠加中远景雨线与前景玻璃水滴，雪天有分层飘雪，关闭“动态天气”后位移动画停止。
+
+首页和设置已移除背景预览、开发配置卡片及大段演示说明，来源与资源署名集中在“关于”。
+设置提供温度单位、动态天气、更新频率、城市管理、系统定位权限、天气缓存清理和隐私说明。
+资讯连接中国天气网官方移动版新闻与气象科普原站，不打包、抓取或虚构新闻内容。
+本轮交付与上线前边界见 [正式产品界面验收](docs/product-shell.md)。
 
 ## 本地天气配置
 
@@ -12,7 +17,7 @@
 
 免费端点限非商业用途并有调用额度，不提供可用性保证；正式商用应选择付费套餐
 或其他获授权的数据源。详情见 [官方价格与使用范围](https://open-meteo.com/en/pricing)。
-网络失败时只读取同一数据源、同一城市的真实缓存并显示“离线缓存”；无缓存则失败重试，
+网络失败时只读取同一数据源、同一城市的真实缓存并显示“离线数据”；无缓存则失败重试，
 不会自动替换成演示数据。只有显式设置 `provider: "mock"` 才用于演示；选择和风却缺少
 凭据时会报告配置错误，不会悄悄改为模拟数据。
 
@@ -43,6 +48,9 @@
 
 ## 视觉与资源
 
+- 最新正式界面：[design/product-shell.jpg](design/product-shell.jpg)
+- 当前青岛夜间云层实录：[design/product-cloud-motion.gif](design/product-cloud-motion.gif)（真实天气，无预览覆盖）
+- 以下预览/演示截图为之前阶段的历史证据；正式界面已不提供背景预览入口。
 - 选定视觉稿：[design/originos-weather-target.png](design/originos-weather-target.png)
 - 2026-09 原生界面总览：[design/redesign-overview.jpg](design/redesign-overview.jpg)
 - 当前在线天气 / 城市夜景 / 白天雨景：[design/live-weather-scenes.jpg](design/live-weather-scenes.jpg)
@@ -62,6 +70,6 @@
 
 ## 状态测试
 
-使用 DevEco 自带 Node 执行 `node --test scripts/test-weather-state.cjs`。脚本通过
+使用 DevEco 自带 Node 执行 `node --test scripts/test-weather-state.cjs scripts/test-news.cjs scripts/test-page-lifecycle.cjs`。脚本通过
 DevEco TypeScript 加载真实模型与 Service，只替换平台 I/O；这不等同于真实 API
 联调。若使用外部 Node，请将 `DEVECO_STUDIO_HOME` 指向 DevEco 安装目录。

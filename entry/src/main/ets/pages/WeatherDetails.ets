@@ -2,6 +2,7 @@ import { DailyWeather, WeatherData } from '../models/WeatherModels'
 import { WeatherService } from '../services/WeatherService'
 import { WeatherIcon } from '../components/WeatherIcon'
 import { DesignTokens as T } from '../theme/DesignTokens'
+import { WeatherPresentation } from '../models/WeatherPresentation'
 
 @Entry
 @Component
@@ -44,7 +45,7 @@ struct WeatherDetails {
           .onClick(() => this.getUIContext().getRouter().back()).accessibilityText('返回天气')
         Text(this.data.city).fontSize(22).fontWeight(FontWeight.Medium).fontColor(T.text)
         Blank()
-        Text(this.data.source === 'mock' ? '演示天气' : this.data.isOffline ? '离线缓存' : this.data.source === 'openmeteo' ? 'Open-Meteo' : '和风天气')
+        Text(WeatherPresentation.status(this.data))
           .fontSize(11).fontColor(T.muted)
       }.width('100%').padding({ left: 12, right: 24, top: 42, bottom: 20 })
       Column({ space: 8 }) {
@@ -80,7 +81,7 @@ struct WeatherDetails {
                       .fontSize(12).fontColor(T.text).width('100%')
                     Text(`夜间 · ${item.textNight}`).fontSize(12).fontColor(T.text).width('100%').lineHeight(19)
                     if (item.nightSummarySource === 'hourly') {
-                      Text(`${item.nightRange} · 逐小时汇总 ${item.nightHours}/${item.nightExpectedHours} 时段${item.nightHours < item.nightExpectedHours ? ' · 数据不完整' : ''}`)
+                      Text(`${item.nightRange}${item.nightHours < item.nightExpectedHours ? ' · 部分时段暂无数据' : ''}`)
                         .fontSize(10).fontColor(T.muted).width('100%').lineHeight(17)
                     }
                     Row() {

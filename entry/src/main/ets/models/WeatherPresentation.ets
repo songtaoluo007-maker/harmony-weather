@@ -1,4 +1,4 @@
-import { AirQuality } from './WeatherModels'
+import { AirQuality, WeatherData } from './WeatherModels'
 
 export class PollutantValue {
   key: string
@@ -16,6 +16,12 @@ export class PollutantValue {
 
 /** Shared display contract: missing values never become plausible zero readings. */
 export class WeatherPresentation {
+  static status(data: WeatherData): string {
+    if (data.source === 'mock') return '示例数据'
+    if (data.isOffline) return '离线数据'
+    return data.source === 'openmeteo' || data.source === 'qweather' ? '' : '历史数据'
+  }
+
   static windSpeed(value: number): string {
     return Number.isFinite(value) && value >= 0 ? `${Math.round(value * 10) / 10} km/h` : '暂无'
   }
