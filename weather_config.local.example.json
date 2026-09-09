@@ -1,0 +1,14 @@
+{
+  "provider": "qweather",
+  "apiKey": "YOUR_QWEATHER_API_KEY",
+  "baseUrl": "https://YOUR_API_HOST.qweatherapi.com",
+  "geoUrl": "https://YOUR_API_HOST.qweatherapi.com",
+  "lang": "zh",
+  "unit": "m",
+  "defaultLocation": "101280601",
+  "defaultCity": "深圳",
+  "cacheMinutes": 30,
+  "cities": [
+    { "name": "深圳", "id": "101280601", "province": "广东" }
+  ]
+}

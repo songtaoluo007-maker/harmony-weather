@@ -1,24 +1,9 @@
 {
   "string": [
-    {
-      "name": "module_desc",
-      "value": "模块描述"
-    },
-    {
-      "name": "MainAbility_desc",
-      "value": "description"
-    },
-    {
-      "name": "MainAbility_label",
-      "value": "label"
-    },
-    {
-      "name": "FormAbility_desc",
-      "value": "form_description"
-    },
-    {
-      "name": "FormAbility_label",
-      "value": "form_label"
-    }
+    { "name": "module_desc", "value": "现代动态天气应用" },
+    { "name": "EntryAbility_desc", "value": "查看实时天气与未来预报" },
+    { "name": "EntryAbility_label", "value": "原境天气" },
+    { "name": "permission_internet_reason", "value": "用于获取实时天气数据" },
+    { "name": "permission_location_reason", "value": "用于定位当前城市并展示当地天气" }
   ]
 }

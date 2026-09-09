@@ -1,0 +1,156 @@
+[
+  {
+    "id": "101010100",
+    "name": "Beijing",
+    "title": "File:Beijing skyline at night.JPG",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Beijing_skyline_at_night.JPG/1280px-Beijing_skyline_at_night.JPG",
+    "page": "https://commons.wikimedia.org/wiki/File:Beijing_skyline_at_night.JPG",
+    "license": "Public domain",
+    "licenseUrl": null,
+    "author": "Scott Meltzer"
+  },
+  {
+    "id": "101020100",
+    "name": "Shanghai",
+    "title": "File:Skyline of Shanghai at night, Aug 10 2023.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3f/Skyline_of_Shanghai_at_night%2C_Aug_10_2023.jpg/1280px-Skyline_of_Shanghai_at_night%2C_Aug_10_2023.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Skyline_of_Shanghai_at_night,_Aug_10_2023.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "A Chinese ID"
+  },
+  {
+    "id": "101280101",
+    "name": "Guangzhou",
+    "title": "File:Guangzhou at night - 2017.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Guangzhou_at_night_-_2017.jpg/1280px-Guangzhou_at_night_-_2017.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Guangzhou_at_night_-_2017.jpg",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "author": "Dairui Chen tallnut"
+  },
+  {
+    "id": "101280601",
+    "name": "Shenzhen",
+    "title": "File:Civic Center, Shenzhen Lianhuashan Park (2018.9) Night cropped.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Civic_Center%2C_Shenzhen_Lianhuashan_Park_%282018.9%29_Night_cropped.jpg/1920px-Civic_Center%2C_Shenzhen_Lianhuashan_Park_%282018.9%29_Night_cropped.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Civic_Center,_Shenzhen_Lianhuashan_Park_(2018.9)_Night_cropped.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "Sparktour",
+    "aspect": 3.110369921164342
+  },
+  {
+    "id": "101210101",
+    "name": "Hangzhou",
+    "title": "File:Hangzhou CBD night show1.png",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Hangzhou_CBD_night_show1.png/1920px-Hangzhou_CBD_night_show1.png",
+    "page": "https://commons.wikimedia.org/wiki/File:Hangzhou_CBD_night_show1.png",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "方的1P",
+    "aspect": 1.3333333333333333
+  },
+  {
+    "id": "101190101",
+    "name": "Nanjing",
+    "title": "File:南京站南广场玄武湖边西南向夜景.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/%E5%8D%97%E4%BA%AC%E7%AB%99%E5%8D%97%E5%B9%BF%E5%9C%BA%E7%8E%84%E6%AD%A6%E6%B9%96%E8%BE%B9%E8%A5%BF%E5%8D%97%E5%90%91%E5%A4%9C%E6%99%AF.jpg/1280px-%E5%8D%97%E4%BA%AC%E7%AB%99%E5%8D%97%E5%B9%BF%E5%9C%BA%E7%8E%84%E6%AD%A6%E6%B9%96%E8%BE%B9%E8%A5%BF%E5%8D%97%E5%90%91%E5%A4%9C%E6%99%AF.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:%E5%8D%97%E4%BA%AC%E7%AB%99%E5%8D%97%E5%B9%BF%E5%9C%BA%E7%8E%84%E6%AD%A6%E6%B9%96%E8%BE%B9%E8%A5%BF%E5%8D%97%E5%90%91%E5%A4%9C%E6%99%AF.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "董辰兴"
+  },
+  {
+    "id": "101270101",
+    "name": "Chengdu",
+    "title": "File:锦江夜景.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/%E9%94%A6%E6%B1%9F%E5%A4%9C%E6%99%AF.jpg/1280px-%E9%94%A6%E6%B1%9F%E5%A4%9C%E6%99%AF.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:%E9%94%A6%E6%B1%9F%E5%A4%9C%E6%99%AF.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "Prcmise"
+  },
+  {
+    "id": "101110101",
+    "name": "Xian",
+    "title": "File:Xi'an Bell Tower at night.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Xi%27an_Bell_Tower_at_night.jpg/1920px-Xi%27an_Bell_Tower_at_night.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Xi%27an_Bell_Tower_at_night.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "TarnishedPath",
+    "aspect": 1.3334807607253427
+  },
+  {
+    "id": "101040100",
+    "name": "Chongqing",
+    "title": "File:Chongqing Night Yuzhong.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/60/Chongqing_Night_Yuzhong.jpg/1280px-Chongqing_Night_Yuzhong.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Chongqing_Night_Yuzhong.jpg",
+    "license": "CC BY 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+    "author": "Jonipoon"
+  },
+  {
+    "id": "101030100",
+    "name": "Tianjin",
+    "title": "File:Night view of Tianjin, July 2019.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Night_view_of_Tianjin%2C_July_2019.jpg/1280px-Night_view_of_Tianjin%2C_July_2019.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Night_view_of_Tianjin,_July_2019.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "Willwongprd"
+  },
+  {
+    "id": "101190401",
+    "name": "Suzhou",
+    "title": "File:Skyline of Suzhou, Jiangsu at night, Jul 10 2024.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Skyline_of_Suzhou%2C_Jiangsu_at_night%2C_Jul_10_2024.jpg/1280px-Skyline_of_Suzhou%2C_Jiangsu_at_night%2C_Jul_10_2024.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Skyline_of_Suzhou,_Jiangsu_at_night,_Jul_10_2024.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "A Chinese ID"
+  },
+  {
+    "id": "101250101",
+    "name": "Changsha",
+    "title": "File:Night view of Xiang River in Changsha 2025032403.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/Night_view_of_Xiang_River_in_Changsha_2025032403.jpg/1280px-Night_view_of_Xiang_River_in_Changsha_2025032403.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Night_view_of_Xiang_River_in_Changsha_2025032403.jpg",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "author": "Huangdan2060"
+  },
+  {
+    "id": "101120201",
+    "name": "Qingdao",
+    "title": "File:Qingdao city night scene from Fushan Bay.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/Qingdao_city_night_scene_from_Fushan_Bay.jpg/1280px-Qingdao_city_night_scene_from_Fushan_Bay.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Qingdao_city_night_scene_from_Fushan_Bay.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "Hessel4321"
+  },
+  {
+    "id": "101070201",
+    "name": "Dalian",
+    "title": "File:China Dalian Xinghai Square or Xinghai Plaza Night 01.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/China_Dalian_Xinghai_Square_or_Xinghai_Plaza_Night_01.jpg/1920px-China_Dalian_Xinghai_Square_or_Xinghai_Plaza_Night_01.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:China_Dalian_Xinghai_Square_or_Xinghai_Plaza_Night_01.jpg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "author": "Air7538",
+    "aspect": 4.696969696969697
+  },
+  {
+    "title": "File:Night in Wuhan City.jpg",
+    "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Night_in_Wuhan_City.jpg/1280px-Night_in_Wuhan_City.jpg",
+    "page": "https://commons.wikimedia.org/wiki/File:Night_in_Wuhan_City.jpg",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "author": "Fumikas Sagisavas",
+    "id": "101200101",
+    "name": "Wuhan"
+  }
+]

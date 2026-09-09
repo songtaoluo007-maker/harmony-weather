@@ -1,24 +1,9 @@
 {
   "string": [
-    {
-      "name": "module_desc",
-      "value": "module description"
-    },
-    {
-      "name": "MainAbility_desc",
-      "value": "description"
-    },
-    {
-      "name": "MainAbility_label",
-      "value": "label"
-    },
-    {
-      "name": "FormAbility_desc",
-      "value": "form_description"
-    },
-    {
-      "name": "FormAbility_label",
-      "value": "form_label"
-    }
+    { "name": "module_desc", "value": "Modern dynamic weather app" },
+    { "name": "EntryAbility_desc", "value": "Current conditions and forecasts" },
+    { "name": "EntryAbility_label", "value": "Origin Weather" },
+    { "name": "permission_internet_reason", "value": "Used to retrieve live weather data" },
+    { "name": "permission_location_reason", "value": "Used to show weather for the current city" }
   ]
 }

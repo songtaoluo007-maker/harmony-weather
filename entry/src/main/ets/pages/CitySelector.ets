@@ -1,181 +1,196 @@
-// ─── 城市选择页：毛玻璃网格 + 搜索 + 入场动画 ────────
-// 改进：搜索清除按钮、系统返回图标
-import { router } from '@kit.ArkUI'
-import { promptAction } from '@kit.ArkUI'
+import { SystemBarService } from '../services/SystemBarService'
+import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit'
+import { geoLocationManager } from '@kit.LocationKit'
+import { CityInfo } from '../models/WeatherModels'
 import { WeatherService } from '../services/WeatherService'
+import { DesignTokens as T } from '../theme/DesignTokens'
+import { BundledCityBackgrounds } from '../theme/BundledCityBackgrounds'
 
 @Entry
 @Component
 struct CitySelector {
-  @State cities: string[] = []
-  @State selectedIndex: number = -1
+  onPageShow(): void { SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext) }
+  @State cities: CityInfo[] = []
+  @State selectedId: string = ''
   @State searchKey: string = ''
-  @State showContent: boolean = false
+  @State manageMode: boolean = false
+  @State browsingAll: boolean = false
+  @State cardWidth: number = 330
+  @State locating: boolean = false
   private service: WeatherService = WeatherService.getInstance()
 
-  aboutToAppear(): void {
-    this.cities = this.service.getCityList()
-    this.selectedIndex = this.cities.indexOf(this.service.getCurrentCity())
-    setTimeout(() => {
-      this.showContent = true
-    }, 100)
+  async aboutToAppear(): Promise<void> {
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
+    await this.service.initialize(context)
+    this.cities = this.service.getSavedCities()
+    this.selectedId = this.service.getCurrentCity().id
   }
 
-  // 过滤城市列表
-  private getFilteredCities(): string[] {
-    if (this.searchKey.length === 0) {
-      return this.cities
+  private filteredCities(): CityInfo[] {
+    const keyword: string = this.searchKey.trim()
+    const list: CityInfo[] = this.browsingAll || keyword ? this.service.getCityList() : this.cities
+    if (!keyword) return list
+    return list.filter((city: CityInfo) => city.name.includes(keyword) || city.province.includes(keyword))
+  }
+
+  private async selectCity(city: CityInfo): Promise<void> {
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
+    if (!await this.service.selectCity(context, city.id)) {
+      this.showToast('城市未能保存，请重试')
+      return
     }
-    return this.cities.filter((c: string) => c.includes(this.searchKey))
+    this.selectedId = city.id
+    this.showToast(`已切换到${city.name}`)
+    setTimeout(() => {
+      this.getUIContext().getRouter().back()
+    }, 220)
   }
 
-  // 清除搜索框
-  private clearSearch(): void {
-    this.searchKey = ''
+  private async removeCity(city: CityInfo): Promise<void> {
+    if (city.id === this.selectedId) { this.showToast('当前城市不能移除'); return }
+    const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
+    if (await this.service.removeSavedCity(context, city.id)) this.cities = this.service.getSavedCities()
+    else this.showToast('移除失败，请重试')
   }
+
+  private cityImage(id: string): Resource {
+    return BundledCityBackgrounds.resolve(id)?.resource ?? $r('app.media.weather_bg_day')
+  }
+
+  private async locateCurrentCity(): Promise<void> {
+    if (this.locating) return
+    this.locating = true
+    try {
+      const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
+      const permissions: Array<Permissions> = [
+        'ohos.permission.APPROXIMATELY_LOCATION',
+        'ohos.permission.LOCATION'
+      ] as Array<Permissions>
+      const result = await abilityAccessCtrl.createAtManager().requestPermissionsFromUser(context, permissions)
+      const granted: boolean = result.authResults.some((value: number) => value === 0)
+      if (!granted) {
+        this.showToast('未获得定位权限，可手动选择城市', 1800)
+        return
+      }
+      const location: geoLocationManager.Location = await geoLocationManager.getCurrentLocation()
+      const nearest: CityInfo = this.service.findNearestCity(location.latitude, location.longitude)
+      await this.selectCity(nearest)
+    } catch (error) {
+      this.showToast('定位失败，请检查系统定位开关', 1800)
+    } finally {
+      this.locating = false
+    }
+  }
+
+  private showToast(message: string, duration: number = 1200): void {
+    try {
+      this.getUIContext().getPromptAction().showToast({ message: message, duration: duration })
+    } catch (error) {
+      console.warn('显示城市提示失败: ' + JSON.stringify(error))
+    }
+  }
+
 
   build() {
     Column() {
-      // ─── 顶部栏 ─────────────────────────────
-      Row() {
-        // 使用符号图标替代文字箭头
-        Text('<')
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#FFFFFF')
-          .width(36)
-          .height(36)
-          .textAlign(TextAlign.Center)
-          .borderRadius(18)
-          .backgroundColor('rgba(255,255,255,0.15)')
-          .onClick(() => {
-            router.back()
-          })
-
-        Text('选择城市')
-          .fontSize(20)
-          .fontColor('#FFFFFF')
-          .fontWeight(FontWeight.Medium)
-          .margin({ left: 16 })
-
+      Row({ space: 8 }) {
+        Button({ type: ButtonType.Circle }) {
+          Image($r('app.media.chevron_left')).width(23).height(23).fillColor(T.text)
+        }.width(44).height(44).backgroundColor(Color.Transparent)
+          .onClick(() => this.getUIContext().getRouter().back()).accessibilityText('返回天气')
+        Text(this.browsingAll ? '添加城市' : '我的城市').fontSize(22).fontWeight(FontWeight.Medium).fontColor(T.text)
         Blank()
+        Button(this.manageMode ? '完成' : '编辑', { type: ButtonType.Normal })
+          .height(44).fontSize(13).fontColor(T.accent).backgroundColor(Color.Transparent)
+          .onClick(() => { this.manageMode = !this.manageMode; this.browsingAll = false })
+          .accessibilityText(this.manageMode ? '完成城市编辑' : '编辑已保存城市')
+        Button({ type: ButtonType.Circle }) {
+          Image(this.browsingAll ? $r('app.media.close') : $r('app.media.plus'))
+            .width(23).height(23).fillColor(T.text)
+        }.width(44).height(44).backgroundColor(Color.Transparent)
+          .onClick(() => { this.browsingAll = !this.browsingAll; this.manageMode = false })
+          .accessibilityText(this.browsingAll ? '关闭添加城市' : '添加城市')
+      }.width('100%').padding({ left: 12, right: 16, top: 42, bottom: 18 })
 
-        Text('管理')
-          .fontSize(14)
-          .fontColor('rgba(255,255,255,0.6)')
+      Column({ space: 14 }) {
+        Search({ value: this.searchKey, placeholder: '搜索城市或省份' })
+          .width('100%').height(48).fontColor(T.text).placeholderColor(T.muted)
+          .backgroundColor(T.surface).borderRadius(16)
+          .searchIcon({ src: $r('app.media.magnify'), color: T.muted })
+          .cancelButton({ style: CancelButtonStyle.INPUT, icon: { src: $r('app.media.close'), color: T.muted } })
+          .onChange((value: string) => { this.searchKey = value })
+
+        Row({ space: 12 }) {
+          Image($r('app.media.map_marker')).width(21).height(21).fillColor(T.accent)
+          Column({ space: 4 }) {
+            Text('使用当前位置').fontSize(14).fontColor(T.text)
+            Text('查找附近的已支持城市').fontSize(11).fontColor(T.muted)
+          }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+          if (this.locating) {
+            LoadingProgress().width(22).height(22).color(T.accent)
+          } else {
+            Image($r('app.media.chevron_right')).width(18).height(18).fillColor(T.muted)
+          }
+        }.width('100%').padding({ top: 8, bottom: 16 })
+          .onClick(() => this.locateCurrentCity()).accessibilityText('定位附近城市')
+        Row() {
+          Text(this.searchKey ? '搜索结果' : this.browsingAll ? '支持的城市' : '已保存')
+            .fontSize(12).fontColor(T.muted)
+          Blank()
+          Text(`${this.filteredCities().length} 座城市`).fontSize(11).fontColor(T.muted)
+        }.width('100%')
+      }.width('100%').padding({ left: 24, right: 24, bottom: 16 })
+
+      if (this.filteredCities().length === 0) {
+        Column({ space: 12 }) {
+          Image($r('app.media.magnify')).width(42).height(42).fillColor(T.muted)
+          Text('没有找到这座城市').fontSize(18).fontColor(T.text)
+          Text('试试城市名称或所在省份').fontSize(12).fontColor(T.muted)
+        }.layoutWeight(1).width('100%').justifyContent(FlexAlign.Start).padding({ top: 24 })
+      } else {
+        List({ space: 12 }) {
+          ForEach(this.filteredCities(), (city: CityInfo) => {
+            ListItem() { this.cityCard(city) }
+          }, (city: CityInfo) => city.id)
+        }.layoutWeight(1).width('100%')
+          .padding({ left: 24, right: 24, bottom: 36 }).scrollBar(BarState.Off)
       }
-      .width('100%')
-      .padding({ left: 20, right: 20, top: 16, bottom: 8 })
-
-      // ─── 搜索框（带清除按钮） ───────────────
-      Row() {
-        TextInput({ placeholder: '搜索城市', text: this.searchKey })
-          .layoutWeight(1)
-          .height(44)
-          .backgroundColor('transparent')
-          .fontColor('#FFFFFF')
-          .placeholderColor('rgba(255,255,255,0.4)')
-          .onChange((value: string) => {
-            this.searchKey = value
-          })
-
-        // 清除按钮：仅在有搜索内容时显示
-        if (this.searchKey.length > 0) {
-          Text('X')
-            .fontSize(14)
-            .fontColor('rgba(255,255,255,0.6)')
-            .width(28)
-            .height(28)
-            .textAlign(TextAlign.Center)
-            .borderRadius(14)
-            .backgroundColor('rgba(255,255,255,0.15)')
-            .margin({ left: 8 })
-            .onClick(() => {
-              this.clearSearch()
-            })
-        }
-      }
-      .width('100%')
-      .height(44)
-      .backgroundColor('rgba(255,255,255,0.1)')
-      .borderRadius(12)
-      .padding({ left: 12, right: 12 })
-      .margin({ left: 20, right: 20, top: 12, bottom: 16 })
-
-      // ─── 城市网格 ─────────────────────────────
-      Scroll() {
-        Flex({ wrap: FlexWrap.Wrap, space: { main: new LengthMetrics(12), cross: new LengthMetrics(12) } }) {
-          ForEach(this.getFilteredCities(), (city: string, index: number) => {
-            Column() {
-              Text(city)
-                .fontSize(16)
-                .fontColor(this.selectedIndex === index ? '#1a1a2e' : '#FFFFFF')
-                .fontWeight(this.selectedIndex === index ? FontWeight.Medium : FontWeight.Normal)
-
-              if (this.selectedIndex === index) {
-                Text('当前')
-                  .fontSize(10)
-                  .fontColor('rgba(26,26,46,0.6)')
-                  .margin({ top: 4 })
-              }
-            }
-            .width('30%')
-            .height(72)
-            .justifyContent(FlexAlign.Center)
-            .alignItems(HorizontalAlign.Center)
-            .borderRadius(16)
-            .backgroundColor(
-              this.selectedIndex === index ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.08)'
-            )
-            .border({
-              width: this.selectedIndex === index ? 0 : 1,
-              color: 'rgba(255,255,255,0.12)'
-            })
-            .opacity(this.showContent ? 1 : 0)
-            .scale({ x: this.showContent ? 1 : 0.8, y: this.showContent ? 1 : 0.8 })
-            .animation({
-              duration: 400,
-              curve: Curve.EaseOut,
-              delay: index * 40
-            })
-            .onClick(() => {
-              this.onCitySelect(city, index)
-            })
-          }, (city: string, index: number) => `${index}_${city}`)
-        }
-        .width('100%')
-        .padding({ left: 20, right: 20 })
-      }
-      .layoutWeight(1)
-      .scrollBar(BarState.Off)
-
-      // ─── 底部提示 ─────────────────────────────
-      Text('数据来源于和风天气，仅供参考')
-        .fontSize(12)
-        .fontColor('rgba(255,255,255,0.3)')
-        .padding({ bottom: 24, top: 12 })
-    }
-    .width('100%')
-    .height('100%')
-    .linearGradient({
-      direction: GradientDirection.Bottom,
-      colors: [['#1a1a2e', 0], ['#16213e', 0.5], ['#0f3460', 1]]
-    })
+    }.width('100%').height('100%').backgroundColor(T.page)
   }
 
-  // 城市选择处理
-  private async onCitySelect(city: string, index: number): Promise<void> {
-    this.selectedIndex = index
-    this.service.setCurrentCity(city)
-
-    promptAction.showToast({
-      message: `已切换到${city}`,
-      duration: 1500
-    })
-
-    // 延迟返回，让用户看到选中效果
-    setTimeout(() => {
-      router.back()
-    }, 300)
+  @Builder
+  cityCard(city: CityInfo) {
+    Stack({ alignContent: Alignment.Top }) {
+      Image(this.cityImage(city.id)).width('100%').height(this.cardWidth * 1920 / 1080)
+        .objectFit(ImageFit.Cover).translate({ y: -(this.cardWidth * 1920 / 1080 - 116) * 0.75 })
+      Column().width('100%').height('100%')
+        .linearGradient({ direction: GradientDirection.Right,
+          colors: [['rgba(12,30,47,0.90)', 0], ['rgba(12,30,47,0.32)', 1]] })
+      Row() {
+        Column({ space: 8 }) {
+          Row({ space: 10 }) {
+            Text(city.name).fontSize(21).fontWeight(FontWeight.Medium).fontColor('#F4F8FF')
+            if (city.id === this.selectedId) {
+              Text('当前').fontSize(10).fontColor('#CEEAF4')
+                .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+                .backgroundColor('rgba(170,220,233,0.18)').borderRadius(7)
+            }
+          }
+          Text(city.province).fontSize(12).fontColor('#C4D2DF')
+        }.alignItems(HorizontalAlign.Start).layoutWeight(1)
+        if (this.manageMode) {
+          Button({ type: ButtonType.Circle }) {
+            Image($r('app.media.trash')).width(20).height(20).fillColor('#FFD1C8')
+          }.width(44).height(44).backgroundColor('rgba(81,32,33,0.65)')
+            .onClick(() => this.removeCity(city)).accessibilityText(`移除${city.name}`)
+        } else {
+          Image($r('app.media.chevron_right')).width(18).height(18).fillColor('#D3E1EC')
+        }
+      }.width('100%').padding(20)
+    }.width('100%').height(116).borderRadius(22).clip(true)
+      .onAreaChange((_old: Area, area: Area) => { this.cardWidth = Number(area.width) })
+      .border({ width: city.id === this.selectedId ? 1.2 : 0, color: T.accent })
+      .onClick(() => { if (!this.manageMode) this.selectCity(city) })
+      .accessibilityText(`${city.name}，${city.province}，${city.id === this.selectedId ? '当前城市' : '点击切换'}`)
   }
 }

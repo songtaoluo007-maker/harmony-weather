@@ -1,6 +1,12 @@
 {
   "src": [
     "pages/Index",
-    "pages/CitySelector"
+    "pages/CitySelector",
+    "pages/Settings",
+    "pages/WeatherDetails",
+    "pages/About",
+    "pages/Privacy",
+    "pages/News",
+    "pages/NewsReader"
   ]
 }

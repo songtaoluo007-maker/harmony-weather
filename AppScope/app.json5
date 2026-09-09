@@ -1,9 +1,9 @@
 {
     "app":  {
                 "vendor":  "example",
-                "label":  "",
+                "label":  "$string:app_name",
                 "versionName":  "1.0.0",
-                "icon":  "",
+                "icon":  "$media:app_icon",
                 "versionCode":  1000000,
                 "bundleName":  "cn.edu.szpu.myWeather"
             }
