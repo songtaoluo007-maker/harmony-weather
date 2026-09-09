@@ -1,9 +1,12 @@
+import { common } from '@kit.AbilityKit'
+import { SystemBarService } from '../services/SystemBarService'
 import { PageHeader } from '../components/PageHeader'
 import { DesignTokens as T } from '../theme/DesignTokens'
 
 @Entry
 @Component
 struct Privacy {
+  onPageShow(): void { SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext) }
   @Builder
   paragraph(title: string, body: string) {
     Column({ space: 10 }) {

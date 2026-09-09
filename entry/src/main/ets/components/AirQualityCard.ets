@@ -17,13 +17,14 @@ export struct AirQualityCard {
 
   private aqiColor(): string {
     const band: number = WeatherInstruments.aqiBand(this.air.aqi)
-    return band < 0 ? this.themeColors.textSecondary : this.colors[band]
+    const ink: string[] = ['#256641', '#756015', '#9A4B12', '#A73D38', '#78528C', '#78445E']
+    return band < 0 ? this.themeColors.textSecondary : this.palette.isLight ? ink[band] : this.colors[band]
   }
 
   build() {
     Column({ space: 18 }) {
       Row() {
-        Text('空气质量').fontSize(20).fontWeight(FontWeight.Medium).fontColor(A.ivory)
+        Text('空气质量').fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.palette.text)
         Blank()
         Text(this.air.standard).fontSize(11).fontColor(this.themeColors.textSecondary)
       }.width('100%')
@@ -35,12 +36,12 @@ export struct AirQualityCard {
         } else {
           Row({ space: 12 }) {
             Row({ space: 10 }) {
-              Text(`${this.air.aqi}`).fontSize(46).fontWeight(300).fontColor(A.ivory)
+              Text(`${this.air.aqi}`).fontSize(46).fontWeight(300).fontColor(this.palette.text)
                 .maxLines(1).minFontSize(32).maxFontSize(46)
                 .heightAdaptivePolicy(TextHeightAdaptivePolicy.MIN_FONT_SIZE_FIRST)
               Text(this.air.level).fontSize(12).fontColor(this.aqiColor()).maxLines(2)
                 .padding({ left: 9, right: 9, top: 5, bottom: 5 })
-                .borderRadius(9).backgroundColor('rgba(180,209,194,0.08)')
+                .borderRadius(9).backgroundColor(this.palette.wash)
             }.layoutWeight(1).alignItems(VerticalAlign.Center)
             Image($r('app.media.chevron_right')).width(18).height(18)
               .fillColor(this.themeColors.textSecondary).opacity(.7)
@@ -53,7 +54,7 @@ export struct AirQualityCard {
                 })
               }.width('100%').margin({ top: 6.5 })
               if (WeatherInstruments.aqiPosition(this.air.aqi) >= 0) {
-                Circle().width(8).height(8).fill(A.ivory).stroke('#263D49').strokeWidth(1.5)
+                Circle().width(8).height(8).fill(this.palette.text).stroke(this.palette.page).strokeWidth(1.5)
                   .position({ x: Math.max(0, this.meterWidth - 8) * WeatherInstruments.aqiPosition(this.air.aqi), y: 4 })
               }
             }.width('100%').height(16).onAreaChange((_old: Area, area: Area) => {
@@ -70,7 +71,7 @@ export struct AirQualityCard {
             ForEach(WeatherPresentation.pollutants(this.air), (item: PollutantValue) => {
               Column({ space: 5 }) {
                 Text(item.label).fontSize(11).fontColor(this.themeColors.textSecondary)
-                Text(item.value).fontSize(22).fontWeight(300).fontColor(A.ivory)
+                Text(item.value).fontSize(22).fontWeight(300).fontColor(this.palette.text)
                   .maxLines(1).minFontSize(16).maxFontSize(22)
                   .width('100%').textAlign(TextAlign.Start)
                   .heightAdaptivePolicy(TextHeightAdaptivePolicy.MIN_FONT_SIZE_FIRST)

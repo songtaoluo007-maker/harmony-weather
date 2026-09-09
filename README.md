@@ -13,9 +13,13 @@
 城市当地日照轨迹与紧凑环境指标。保留真实数据与全部原有入口；见
 [原生前后对比](design/atmosphere-comparison.jpg) 和 [本轮界面验收](docs/atmosphere-polish.md)。
 
-最新专业复核已落地：下半屏材质随城市昼夜与天气变化，空气/生活/预警使用统一原生详情面板；
+专业复核已落地：下半屏材质随城市昼夜与天气变化，空气/生活/预警使用统一原生详情面板；
 运动提示联动 AQI，紫外线明确区分当日峰值与实时强度。见
-[最新原生界面](design/review-delivery.jpg) 与 [复核改进及验证边界](docs/experience-review-followup.md)。
+[上一阶段原生界面](design/review-delivery.jpg) 与 [复核改进及验证边界](docs/experience-review-followup.md)。
+
+最新蓝白试版保留城市照片与天气动画，使用日间蓝白、夜间柔蓝表面，生活插画改为透明底。
+见 [最新原生试版](design/bluewhite-trial.jpg)、[夜间云层实录](design/bluewhite-after-motion.gif)
+及 [改动与验证边界](docs/blue-white-trial.md)。日间截图为明确标注的配色检查，最终包没有时段覆盖。
 
 ## 本地天气配置
 
@@ -56,7 +60,9 @@
 
 ## 视觉与资源
 
-- 最新首页卡片：[design/atmosphere-comparison.jpg](design/atmosphere-comparison.jpg)
+- 最新蓝白卡片：[design/bluewhite-trial.jpg](design/bluewhite-trial.jpg)
+- 蓝白辅助页面：[design/bluewhite-pages.jpg](design/bluewhite-pages.jpg)（日间配色检查）
+- 上一版首页卡片：[design/atmosphere-comparison.jpg](design/atmosphere-comparison.jpg)
 - 正式产品入口：[design/product-shell.jpg](design/product-shell.jpg)（首页卡片为此次改造前）
 - 当前青岛夜间云层实录：[design/product-cloud-motion.gif](design/product-cloud-motion.gif)（真实天气，无预览覆盖）
 - 以下预览/演示截图为之前阶段的历史证据；正式界面已不提供背景预览入口。

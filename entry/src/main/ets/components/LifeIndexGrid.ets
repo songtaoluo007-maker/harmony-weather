@@ -24,9 +24,9 @@ export struct LifeIndexGrid {
   }
 
   private illustration(key: string): Resource {
-    if (key === 'clothing') return $r('app.media.life_clothing')
-    if (key === 'uv') return $r('app.media.life_uv')
-    return $r('app.media.life_sport')
+    if (key === 'clothing') return $r('app.media.life_clothing_cutout')
+    if (key === 'uv') return $r('app.media.life_uv_cutout')
+    return $r('app.media.life_sport_cutout')
   }
 
   private isUnavailable(item: LifeIndex): boolean {
@@ -77,7 +77,7 @@ export struct LifeIndexGrid {
               .padding({ left: 12, right: 12, top: 2, bottom: 12 })
               .linearGradient({
                 direction: GradientDirection.Bottom,
-                colors: [[Color.Transparent, 0], [this.palette.panelTop, 1]]
+                colors: [[this.palette.illustrationClear, 0], [this.palette.panelTop, 1]]
               })
             }.width('100%').borderRadius(22).clip(true)
           }

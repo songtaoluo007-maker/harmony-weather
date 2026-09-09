@@ -1,3 +1,4 @@
+import { SystemBarService } from '../services/SystemBarService'
 import { common } from '@kit.AbilityKit'
 import { webview } from '@kit.ArkWeb'
 import { NewsCatalog, NewsLoadState } from '../models/NewsCatalog'
@@ -24,6 +25,7 @@ class ReaderView {
 @Entry
 @Component
 struct NewsReaderPage {
+  onPageShow(): void { SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext) }
   @State title: string = '官方原文'
   @State channelId: string = ''
   @State currentUrl: string = ''

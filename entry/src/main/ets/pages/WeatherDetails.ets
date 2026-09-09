@@ -1,3 +1,5 @@
+import { common } from '@kit.AbilityKit'
+import { SystemBarService } from '../services/SystemBarService'
 import { DailyWeather, WeatherData } from '../models/WeatherModels'
 import { WeatherService } from '../services/WeatherService'
 import { WeatherIcon } from '../components/WeatherIcon'
@@ -7,6 +9,7 @@ import { WeatherPresentation } from '../models/WeatherPresentation'
 @Entry
 @Component
 struct WeatherDetails {
+  onPageShow(): void { SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext) }
   @State data: WeatherData = new WeatherData()
   @State unit: string = 'c'
   @State expandedDate: string = ''

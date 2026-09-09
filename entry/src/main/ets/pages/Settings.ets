@@ -1,3 +1,4 @@
+import { SystemBarService } from '../services/SystemBarService'
 import { abilityAccessCtrl, common } from '@kit.AbilityKit'
 import { AppSettings, WeatherService } from '../services/WeatherService'
 import { BottomNavigation } from '../components/BottomNavigation'
@@ -21,7 +22,7 @@ struct SettingsPage {
     this.readPermission()
   }
 
-  onPageShow(): void { this.restoreSettings(); this.readPermission() }
+  onPageShow(): void { SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext); this.restoreSettings(); this.readPermission() }
   onBackPress(): boolean { this.returnHome(); return true }
   private async returnHome(): Promise<void> {
     try { await this.getUIContext().getRouter().replaceUrl({ url: 'pages/Index' }) } catch (error) { this.toast('请点击天气入口返回') }

@@ -26,17 +26,25 @@ function page(name, globals) {
   return Object.values(execute(source, globals))[0];
 }
 
-function home() {
+function home(realScene = false) {
   const timers = new Map();
+  const chrome = [];
+  const palettes = [];
+  const palette = { toTheme: () => ({}) };
   const settings = { unit: 'c', motionEnabled: true, refreshMinutes: 30 };
   const service = { initialize: async () => {}, getSettings: () => settings,
     getCurrentCity: () => ({ id: 'test-city' }), getCityList: () => [{ id: 'test-city' }],
     loadWeather: async () => ({ lastUpdate: 100, cityId: 'test-city' }) };
   const background = { resolve: async () => ({ imageUrl: 'test' }) };
-  class Data { lastUpdate = 0; cityId = 'test-city'; }
+  class Data { lastUpdate = 0; cityId = 'test-city';
+    static sceneAt() { return { hour: 12, isNight: false, visualState: 'day' }; } }
   class Ui { static loading() { return 'loading'; } static ready() { return 'ready'; } static error() { return 'error'; } }
   const Home = page('Index', { WeatherData: Data, WeatherUiState: Ui, ThemeColors: class {},
     AtmospherePalette: class {}, WeatherDetailContent: class {},
+    AtmosphereTokens: { forWeather: () => palette }, WeatherTheme: { getColors: () => ({}) },
+    DesignTokens: { current: palette, usePalette: p => palettes.push(p) },
+    SystemBarService: { apply: (_context, overScene) => chrome.push(overScene) },
+    WeatherUiStatus: { ERROR: 'error' },
     WeatherVisualState: { CLEAR_DAY: 'day' }, Scroller: class {}, $r: v => v,
     WeatherService: { getInstance: () => service }, CityBackgroundService: { getInstance: () => background },
     BundledCityBackgrounds: { resolve: () => null }, NightCityBackgrounds: { resolve: () => null },
@@ -44,9 +52,33 @@ function home() {
     clearInterval: id => timers.delete(id) });
   const instance = new Home();
   instance.getUIContext = () => ({ getHostContext: () => ({}) });
-  instance.updateScene = () => {};
-  return { instance, service, background, timers };
+  if (!realScene) instance.updateScene = () => {};
+  return { instance, service, background, timers, chrome, palettes };
 }
+
+test('hidden home weather completion cannot recolor the visible secondary page or system bars', async () => {
+  const f = home(true), pending = deferred(), started = deferred();
+  f.service.loadWeather = () => { started.resolve(); return pending.promise; };
+  const loading = f.instance.loadData(true);
+  await started.promise;
+  f.instance.onPageHide();
+  pending.resolve({ lastUpdate: Date.now(), cityId: 'test-city' });
+  await loading;
+  assert.equal(f.instance.weatherData.cityId, 'test-city');
+  assert.equal(f.chrome.length, 0);
+  assert.equal(f.palettes.length, 0);
+});
+
+test('returning to an empty/error home restores surface system bars before loading finishes', async () => {
+  const f = home(), pending = deferred();
+  f.instance.uiState = { status: 'error' };
+  f.service.initialize = () => pending.promise;
+  const showing = f.instance.onPageShow();
+  assert.deepEqual(f.chrome, [false]);
+  assert.equal(f.palettes[0], f.instance.palette);
+  pending.resolve();
+  await showing;
+});
 
 test('replaced home ignores a late weather response and does not resurrect its interval', async () => {
   const f = home(), pending = deferred(), started = deferred();

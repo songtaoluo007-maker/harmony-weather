@@ -1,4 +1,5 @@
 import { WeatherData, WeatherVisualState } from '../models/WeatherModels'
+import { ThemeColors } from './WeatherTheme'
 
 export class AtmospherePalette {
   key: string
@@ -7,31 +8,61 @@ export class AtmospherePalette {
   border: string
   wash: string
   accent: string
-  warm: string = '#E6BE8A'
+  warm: string
+  isLight: boolean
+  page: string
+  text: string
+  secondary: string
+  muted: string
+  track: string
   illustrationBase: string
   illustrationClear: string
   illustrationShade: string
   sheetBackground: string
 
-  constructor(key: string = 'night', base: string = '18,41,52', light: string = '156,207,203',
-    accent: string = '#A6D8D4', sheet: string = '#10242E') {
+  constructor(key: string = 'night', isLight: boolean = false, page: string = '#132640',
+    top: string = '#29476E', bottom: string = '#1D3454', base: string = '#203C62', sheet: string = '#192F4F') {
     this.key = key
-    this.panelTop = `rgba(${light},0.18)`
-    this.panelBottom = `rgba(${light},0.025)`
-    this.border = `rgba(${light},0.19)`
-    this.wash = `rgba(${light},0.045)`
-    this.accent = accent
-    this.illustrationBase = `rgb(${base})`
-    this.illustrationClear = `rgba(${base},0)`
-    this.illustrationShade = `rgba(${base},0.36)`
+    this.isLight = isLight
+    this.page = page
+    this.text = isLight ? '#172F50' : '#F4F8FF'
+    this.secondary = isLight ? '#425D80' : '#CFDCF0'
+    this.muted = isLight ? '#506889' : '#C0D1E9'
+    this.panelTop = top
+    this.panelBottom = bottom
+    this.border = isLight ? '#CBDCF2' : '#47638A'
+    this.wash = isLight ? 'rgba(74,133,225,0.04)' : 'rgba(152,190,247,0.04)'
+    this.accent = isLight ? '#225CAC' : '#B8D7FF'
+    this.warm = isLight ? '#935411' : '#F0CB94'
+    this.track = isLight ? '#A7BEDD' : '#6B83A4'
+    this.illustrationBase = base
+    const rgb: string = `${Number.parseInt(base.substring(1, 3), 16)},${Number.parseInt(base.substring(3, 5), 16)},${Number.parseInt(base.substring(5, 7), 16)}`
+    this.illustrationClear = `rgba(${rgb},0)`
+    this.illustrationShade = `rgba(${rgb},0.4)`
     this.sheetBackground = sheet
+  }
+
+  // Surface-only mapping; the photographed/animated sky keeps WeatherTheme unchanged.
+  toTheme(): ThemeColors {
+    const colors = new ThemeColors()
+    colors.pageBackground = this.page
+    colors.textColor = this.text
+    colors.textSecondary = this.secondary
+    colors.textTertiary = this.muted
+    colors.divider = this.border
+    colors.sectionTint = this.panelTop
+    colors.strongTint = this.panelBottom
+    colors.accent = this.accent
+    colors.warmAccent = this.warm
+    colors.isLight = this.isLight
+    return colors
   }
 }
 
 // Cached, static palettes: the existing city clock chooses them; no new animation loop.
 export class AtmosphereTokens {
-  static readonly ivory: string = '#F4F1EA'
-  static readonly teal: string = '#A6D8D4'
+  static readonly ivory: string = '#F4F8FF'
+  static readonly teal: string = '#B8D7FF'
   static readonly gold: string = '#E6BE8A'
   static readonly border: string = 'rgba(218,235,237,0.12)'
   static readonly panelTop: string = 'rgba(132,170,180,0.16)'
@@ -41,19 +72,19 @@ export class AtmosphereTokens {
 
   private static readonly night: AtmospherePalette = new AtmospherePalette()
   private static readonly day: AtmospherePalette =
-    new AtmospherePalette('day', '36,77,94', '229,227,210', '#DDE9DD', '#214350')
+    new AtmospherePalette('day', true, '#EFF5FD', '#FFFFFF', '#E7F0FD', '#E6F0FF', '#F7FAFF')
   private static readonly horizon: AtmospherePalette =
-    new AtmospherePalette('horizon', '57,64,69', '237,192,139', '#EED0A8', '#303A43')
+    new AtmospherePalette('horizon', true, '#F0F4FC', '#F7FAFF', '#E9EFFB', '#E8EFFB', '#F4F7FD')
   private static readonly rain: AtmospherePalette =
-    new AtmospherePalette('rain', '38,66,84', '160,193,219', '#B9D5E8', '#203644')
+    new AtmospherePalette('rain', true, '#EDF3FB', '#F8FAFF', '#E4EDFA', '#E3EDFB', '#F3F7FE')
   private static readonly rainNight: AtmospherePalette =
-    new AtmospherePalette('rain-night', '19,37,57', '137,171,209', '#AAC7E5', '#142538')
+    new AtmospherePalette('rain-night', false, '#13233D', '#283E63', '#1C3051', '#20365C', '#182C4B')
   private static readonly haze: AtmospherePalette =
-    new AtmospherePalette('haze', '54,69,72', '200,207,196', '#D2DDD5', '#2A3B40')
+    new AtmospherePalette('haze', true, '#F0F3F9', '#FCFDFF', '#E9EEF8', '#E7EEFA', '#F5F7FC')
   private static readonly hazeNight: AtmospherePalette =
-    new AtmospherePalette('haze-night', '30,43,49', '164,185,181', '#BED2CB', '#1B2C33')
+    new AtmospherePalette('haze-night', false, '#19283F', '#30435F', '#22344E', '#293D5B', '#20324B')
   private static readonly snow: AtmospherePalette =
-    new AtmospherePalette('snow', '45,65,80', '218,235,242', '#D5EAF2', '#263D4A')
+    new AtmospherePalette('snow', true, '#F3F7FE', '#FFFFFF', '#EBF3FF', '#EAF2FF', '#F9FBFF')
 
   static forWeather(data: WeatherData, now: number = Date.now()): AtmospherePalette {
     if (!Number.isFinite(now) || !Number.isFinite(data.utcOffsetSeconds)) return AtmosphereTokens.night

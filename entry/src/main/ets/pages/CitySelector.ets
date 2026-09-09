@@ -1,3 +1,4 @@
+import { SystemBarService } from '../services/SystemBarService'
 import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit'
 import { geoLocationManager } from '@kit.LocationKit'
 import { CityInfo } from '../models/WeatherModels'
@@ -8,6 +9,7 @@ import { BundledCityBackgrounds } from '../theme/BundledCityBackgrounds'
 @Entry
 @Component
 struct CitySelector {
+  onPageShow(): void { SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext) }
   @State cities: CityInfo[] = []
   @State selectedId: string = ''
   @State searchKey: string = ''
@@ -167,7 +169,7 @@ struct CitySelector {
       Row() {
         Column({ space: 8 }) {
           Row({ space: 10 }) {
-            Text(city.name).fontSize(21).fontWeight(FontWeight.Medium).fontColor(T.text)
+            Text(city.name).fontSize(21).fontWeight(FontWeight.Medium).fontColor('#F4F8FF')
             if (city.id === this.selectedId) {
               Text('当前').fontSize(10).fontColor('#CEEAF4')
                 .padding({ left: 8, right: 8, top: 3, bottom: 3 })
@@ -187,7 +189,7 @@ struct CitySelector {
       }.width('100%').padding(20)
     }.width('100%').height(116).borderRadius(22).clip(true)
       .onAreaChange((_old: Area, area: Area) => { this.cardWidth = Number(area.width) })
-      .border({ width: city.id === this.selectedId ? 1.2 : 0, color: '#8DBBCB' })
+      .border({ width: city.id === this.selectedId ? 1.2 : 0, color: T.accent })
       .onClick(() => { if (!this.manageMode) this.selectCity(city) })
       .accessibilityText(`${city.name}，${city.province}，${city.id === this.selectedId ? '当前城市' : '点击切换'}`)
   }

@@ -1,3 +1,5 @@
+import { common } from '@kit.AbilityKit'
+import { SystemBarService } from '../services/SystemBarService'
 import { BottomNavigation } from '../components/BottomNavigation'
 import { NewsCatalog, NewsChannel } from '../models/NewsCatalog'
 import { DesignTokens as T } from '../theme/DesignTokens'
@@ -5,6 +7,7 @@ import { DesignTokens as T } from '../theme/DesignTokens'
 @Entry
 @Component
 struct NewsPage {
+  onPageShow(): void { SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext) }
   @State opening: boolean = false
   private channels: NewsChannel[] = NewsCatalog.channels()
 

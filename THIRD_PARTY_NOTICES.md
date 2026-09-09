@@ -30,3 +30,8 @@ Source: https://github.com/basmilius/meteocons
 `life_clothing.png`, `life_uv.png`, and `life_sport.png` are original AI-generated
 illustrations created for the September 2026 redesign. Their prompts are recorded in
 `design/life-assets-prompts.md`.
+
+The corresponding `life_*_cutout.png` illustrations are AI-edited transparent
+variants for the blue-white theme. Sources, output paths and full edit prompts
+are recorded in `design/bluewhite-assets-prompts.md`. City photography and
+weather-motion resources were not altered by this edit.

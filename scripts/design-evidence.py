@@ -81,6 +81,11 @@ if __name__ == '__main__':
         board(['atmosphere-before.jpeg', 'atmosphere-life.jpeg', 'atmosphere-details.jpeg'], ['改造前 · 重复指标卡片', '改造后 · 生活气象', '改造后 · 原生天气仪表'], 'atmosphere-comparison.jpg', 400)
     elif sys.argv[1] == 'review-board':
         board(['review-life-final.jpeg', 'review-air-expanded.jpeg', 'review-uv-sheet.jpeg'], ['生活气象 · 时段与空气联动', '空气详情 · 统一原生面板', '紫外线 · 明确预报范围'], 'review-delivery.jpg', 360)
+    elif sys.argv[1] == 'bluewhite-board':
+        board(['bluewhite-after-a.jpeg', 'bluewhite-day-qa.jpeg', 'bluewhite-night-life.jpeg'],
+              ['上海夜景 · 真实时间与天气', '日间配色 · 临时时段覆盖检查', '夜间蓝色 · 真实时间'], 'bluewhite-trial.jpg', 360)
+        board(['bluewhite-day-settings.jpeg', 'bluewhite-day-cities.jpeg', 'bluewhite-day-news.jpeg'],
+              ['设置 · 日间配色检查', '城市 · 日间配色检查', '资讯 · 日间配色检查'], 'bluewhite-pages.jpg', 320)
     elif sys.argv[1] == 'board':
         board(['redesign-home-final.jpeg', 'redesign-life-final.jpeg', 'redesign-cities-final.jpeg', 'redesign-settings-final.jpeg'], ['首页 · 模拟器实拍', '生活气象 · 模拟器实拍', '城市管理 · 模拟器实拍', '设置 · 模拟器实拍'], 'redesign-overview.jpg')
         board(['originos-weather-target.png', 'redesign-home-final.jpeg'], ['已确认的视觉方向', '原生运行效果 · 当前演示数据'], 'redesign-reference-comparison.jpg', 440)

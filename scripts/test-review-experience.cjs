@@ -128,3 +128,67 @@ test('alert sheet keeps every real warning instead of silently dropping addition
   assert.equal(detail.rows[1].value, '真实预警乙');
   assert.equal(detail.layout, 'list');
 });
+
+function luminance(hex) {
+  assert.match(hex, /^#[0-9a-f]{6}$/i);
+  const values = hex.slice(1).match(/../g).map(v => parseInt(v, 16) / 255)
+    .map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+  return values[0] * .2126 + values[1] * .7152 + values[2] * .0722;
+}
+function contrast(a, b) {
+  const x = luminance(a), y = luminance(b);
+  return (Math.max(x, y) + .05) / (Math.min(x, y) + .05);
+}
+
+test('blue-white surfaces keep day readable and night dim across weather palettes', () => {
+  const f = fixture(), d = city(f);
+  for (const weather of ['晴', '小雨', '雾', '雪']) {
+    d.current.text = weather;
+    for (const hour of [12, 18, 22]) {
+      const p = f.AtmosphereTokens.forWeather(d, Date.parse(`2026-09-08T${hour}:00:00+08:00`));
+      assert.equal(typeof p.page, 'string');
+      assert.equal(p.isLight, hour !== 22);
+      assert.ok(hour === 22 ? luminance(p.page) < .09 : luminance(p.page) > .8);
+      for (const bg of [p.page, p.panelTop, p.panelBottom, p.illustrationBase, p.sheetBackground]) {
+        for (const ink of [p.text, p.secondary, p.muted, p.accent]) {
+          assert.ok(contrast(ink, bg) >= 4.5, `${weather}/${hour}: ${ink} on ${bg}`);
+        }
+      }
+    }
+  }
+});
+
+test('surface theme mapping cannot recolor or mutate the city scene theme', () => {
+  const f = fixture(), d = city(f), W = f.load('theme/WeatherTheme').WeatherTheme;
+  const scene = W.getColors(f.WeatherVisualState.CLEAR_NIGHT, true);
+  const original = JSON.stringify(scene);
+  const p = f.AtmosphereTokens.forWeather(d, Date.parse('2026-09-08T12:00:00+08:00'));
+  assert.equal(typeof p.toTheme, 'function');
+  const surface = p.toTheme();
+  assert.notEqual(surface.pageBackground, scene.pageBackground);
+  assert.equal(surface.textColor, p.text);
+  assert.equal(surface.isLight, true);
+  assert.equal(JSON.stringify(scene), original);
+});
+
+test('secondary native pages inherit the last selected city surface palette', () => {
+  const f = fixture(), d = city(f), T = f.load('theme/DesignTokens').DesignTokens;
+  assert.equal(typeof T.usePalette, 'function');
+  for (const hour of [12, 22]) {
+    const p = f.AtmosphereTokens.forWeather(d, Date.parse(`2026-09-08T${hour}:00:00+08:00`));
+    T.usePalette(p);
+    assert.equal(T.page, p.page);
+    assert.equal(T.surface, p.panelTop);
+    assert.equal(T.text, p.text);
+    assert.equal(T.accent, p.accent);
+    assert.ok(contrast(T.muted, T.surface) >= 4.5);
+  }
+});
+
+test('system bars use dark ink on blue-white surfaces but retain white ink above city photography', () => {
+  const f = fixture(), T = f.load('theme/DesignTokens').DesignTokens;
+  assert.equal(typeof T.barInk, 'function');
+  assert.equal(T.barInk(true, false), '#172F50');
+  assert.equal(T.barInk(true, true), '#FFFFFF');
+  assert.equal(T.barInk(false, false), '#FFFFFF');
+});

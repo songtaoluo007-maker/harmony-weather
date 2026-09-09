@@ -1,8 +1,10 @@
 import { DesignTokens as T } from '../theme/DesignTokens'
+import { AtmospherePalette } from '../theme/AtmosphereTokens'
 
 @Component
 export struct BottomNavigation {
   @Prop selected: string = 'weather'
+  @Prop palette: AtmospherePalette = T.current
   @State navigating: boolean = false
 
   private async open(key: string, route: string): Promise<void> {
@@ -19,9 +21,9 @@ export struct BottomNavigation {
   item(label: string, key: string, route: string, icon: Resource) {
     Button({ type: ButtonType.Normal }) {
       Column({ space: 5 }) {
-        Image(icon).width(22).height(22).fillColor(this.selected === key ? T.accent : T.muted)
+        Image(icon).width(22).height(22).fillColor(this.selected === key ? this.palette.accent : this.palette.muted)
         Text(label).fontSize(11).fontWeight(this.selected === key ? FontWeight.Medium : FontWeight.Normal)
-          .fontColor(this.selected === key ? T.accent : T.muted)
+          .fontColor(this.selected === key ? this.palette.accent : this.palette.muted)
       }.width('100%').padding({ top: 10, bottom: 8 })
     }.layoutWeight(1).height(58).borderRadius(16).backgroundColor(Color.Transparent)
       .enabled(!this.navigating).onClick(() => this.open(key, route))
@@ -34,6 +36,6 @@ export struct BottomNavigation {
       this.item('资讯', 'news', 'pages/News', $r('app.media.newspaper'))
       this.item('设置', 'settings', 'pages/Settings', $r('app.media.cog'))
     }.width('100%').padding({ left: 30, right: 30, bottom: 22, top: 2 })
-      .backgroundColor(T.page).border({ width: { top: 0.5 }, color: T.border })
+      .backgroundColor(this.palette.page).border({ width: { top: 0.5 }, color: this.palette.border })
   }
 }

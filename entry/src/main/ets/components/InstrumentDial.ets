@@ -1,4 +1,4 @@
-import { AtmosphereTokens as A } from '../theme/AtmosphereTokens'
+import { AtmospherePalette, AtmosphereTokens as A } from '../theme/AtmosphereTokens'
 
 // Static measured canvases: redraw on data or layout change, never start a frame loop.
 @Component
@@ -7,6 +7,7 @@ export struct InstrumentDial {
   @Prop @Watch('draw') value: number = -1
   @Prop @Watch('draw') active: boolean = true
   @Prop @Watch('draw') tint: string = A.teal
+  @Prop @Watch('draw') palette: AtmospherePalette = new AtmospherePalette()
   private context: CanvasRenderingContext2D = new CanvasRenderingContext2D(new RenderingContextSettings(true))
   private ready: boolean = false
   private canvasWidth: number = 0
@@ -27,11 +28,11 @@ export struct InstrumentDial {
       const outer: number = radius, inner: number = radius - (index % 5 === 0 ? 6 : 3)
       this.line(x + Math.sin(angle) * inner, y - Math.cos(angle) * inner,
         x + Math.sin(angle) * outer, y - Math.cos(angle) * outer,
-        index % 10 === 0 ? 'rgba(237,241,240,0.65)' : A.track, index % 5 === 0 ? 1.4 : .8)
+        index % 10 === 0 ? this.palette.secondary : this.palette.track, index % 5 === 0 ? 1.4 : .8)
     }
     c.font = '9vp sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'
-    c.fillStyle = A.gold; c.fillText('北', x, y - radius - 10)
-    c.fillStyle = '#A8BAC3'
+    c.fillStyle = this.palette.warm; c.fillText('北', x, y - radius - 10)
+    c.fillStyle = this.palette.secondary
     c.fillText('南', x, y + radius + 10)
     c.fillText('西', x - radius - 10, y)
     c.fillText('东', x + radius + 10, y)
@@ -39,18 +40,18 @@ export struct InstrumentDial {
       c.save(); c.translate(x, y); c.rotate(this.value * Math.PI / 180)
       c.fillStyle = this.tint
       c.beginPath(); c.moveTo(0, -radius + 10); c.lineTo(-5, 7); c.lineTo(0, 3); c.lineTo(5, 7); c.closePath(); c.fill()
-      c.fillStyle = 'rgba(166,216,212,0.20)'
+      c.fillStyle = this.palette.border
       c.beginPath(); c.moveTo(0, radius - 12); c.lineTo(-4, -3); c.lineTo(4, -3); c.closePath(); c.fill()
       c.restore()
     }
-    c.fillStyle = A.ivory; c.beginPath(); c.arc(x, y, 2.5, 0, Math.PI * 2); c.fill()
+    c.fillStyle = this.palette.text; c.beginPath(); c.arc(x, y, 2.5, 0, Math.PI * 2); c.fill()
   }
 
   private solar(): void {
     const c = this.context
     const left: number = 10, right: number = this.canvasWidth - 10, base: number = this.canvasHeight - 12
     const amplitude: number = this.canvasHeight - 24
-    this.line(left, base, right, base, A.track)
+    this.line(left, base, right, base, this.palette.track)
     c.beginPath()
     for (let index: number = 0; index <= 80; index++) {
       const t: number = index / 80
@@ -75,7 +76,7 @@ export struct InstrumentDial {
       const x: number = left + (right - left) * t, y: number = base - Math.sin(t * Math.PI) * amplitude
       if (index === 0) c.moveTo(x, y); else c.lineTo(x, y)
     }
-    c.lineWidth = 1.8; c.strokeStyle = A.gold; c.stroke()
+    c.lineWidth = 1.8; c.strokeStyle = this.palette.warm; c.stroke()
     if (this.active) {
       const x: number = left + (right - left) * this.value, y: number = base - Math.sin(this.value * Math.PI) * amplitude
       const halo = c.createRadialGradient(x, y, 2, x, y, 15)
@@ -93,7 +94,7 @@ export struct InstrumentDial {
       const selected: boolean = this.value >= 0 && (index + .5) / 30 <= fraction
       const length: number = index % 5 === 0 ? 13 : 8
       this.line(gap * (index + .5), this.canvasHeight / 2 - length / 2, gap * (index + .5),
-        this.canvasHeight / 2 + length / 2, selected ? this.tint : A.track, 2)
+        this.canvasHeight / 2 + length / 2, selected ? this.tint : this.palette.track, 2)
     }
   }
 

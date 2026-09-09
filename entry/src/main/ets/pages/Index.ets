@@ -26,11 +26,13 @@ import { WeatherInstruments } from '../models/WeatherInstruments'
 import { AtmospherePalette, AtmosphereTokens } from '../theme/AtmosphereTokens'
 import { WeatherDetailContent, WeatherDetailPresentation } from '../models/WeatherDetailPresentation'
 import { WeatherDetailSheet } from '../components/WeatherDetailSheet'
+import { DesignTokens } from '../theme/DesignTokens'
+import { SystemBarService } from '../services/SystemBarService'
 
 @Entry
 @Component
 struct Index {
-  @State palette: AtmospherePalette = new AtmospherePalette()
+  @State palette: AtmospherePalette = DesignTokens.current
   @State detailOpen: boolean = false
   @State detailContent: WeatherDetailContent = new WeatherDetailContent()
   @State compactHeader: boolean = false
@@ -39,6 +41,7 @@ struct Index {
   @State weatherData: WeatherData = new WeatherData()
   @State visualState: WeatherVisualState = WeatherVisualState.CLEAR_DAY
   @State themeColors: ThemeColors = new ThemeColors()
+  @State surfaceColors: ThemeColors = new ThemeColors()
   @State refreshing: boolean = false
   @State motionEnabled: boolean = true
   @State unit: string = 'c'
@@ -85,6 +88,7 @@ struct Index {
   async onPageShow(): Promise<void> {
     if (this.disposed) return
     this.pageActive = true
+    this.syncSystemBars()
     const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext
     await this.service.initialize(context)
     if (this.disposed || !this.pageActive) return
@@ -117,8 +121,8 @@ struct Index {
       const data: WeatherData = await this.service.loadWeather(context, undefined, forceRefresh)
       if (version !== this.requestVersion) return
       this.weatherData = data
-      this.updateScene(false)
       this.uiState = WeatherUiState.ready(data)
+      this.updateScene(false)
       if (this.loadedCityId !== data.cityId) {
         this.hasBundledCityBackground = false
         this.cityBackgroundUrl = ''
@@ -128,6 +132,7 @@ struct Index {
     } catch (error) {
       if (version !== this.requestVersion) return
       this.uiState = WeatherUiState.error('天气更新失败，请检查网络后重试', previous)
+      this.syncSystemBars()
     } finally {
       if (version === this.requestVersion) {
         this.refreshing = false
@@ -208,6 +213,8 @@ struct Index {
     this.visualState = scene.visualState
     this.themeColors = WeatherTheme.getColors(this.visualState, this.isNight)
     this.palette = AtmosphereTokens.forWeather(this.weatherData, this.sceneTime)
+    this.surfaceColors = this.palette.toTheme()
+    this.syncSystemBars()
     if (this.detailOpen && this.inspectedLife) {
       this.detailContent = WeatherDetailPresentation.life(this.weatherData, this.inspectedLife)
     }
@@ -222,6 +229,15 @@ struct Index {
     this.inspectedLife = null
     this.detailContent = WeatherDetailPresentation.air(this.weatherData)
     this.detailOpen = true
+  }
+
+  private syncSystemBars(): void {
+    // A request may finish while a pushed page is visible; only the visible page owns chrome.
+    if (this.disposed || !this.pageActive) return
+    DesignTokens.usePalette(this.palette)
+    const overScene: boolean = this.weatherData.lastUpdate > 0 &&
+      this.uiState.status !== WeatherUiStatus.ERROR && !this.compactHeader
+    SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext, overScene)
   }
 
   private openLifeDetail(item: LifeIndex): void {
@@ -255,12 +271,12 @@ struct Index {
             .hitTestBehavior(HitTestMode.None).accessibilityLevel('no')
         }
       }
-      .width('100%').layoutWeight(1).backgroundColor(this.themeColors.pageBackground)
+      .width('100%').layoutWeight(1).backgroundColor(this.palette.page)
       .onAreaChange((_old: Area, area: Area) => {
         this.sceneHeight = Math.min(700, Math.max(470, Number(area.width) * 1.55))
       })
-      BottomNavigation({ selected: 'weather' })
-    }.width('100%').height('100%').backgroundColor(this.themeColors.pageBackground)
+      BottomNavigation({ selected: 'weather', palette: this.palette })
+    }.width('100%').height('100%').backgroundColor(this.palette.page)
       .bindSheet($$this.detailOpen, this.detailBuilder(), {
         detents: [SheetSize.MEDIUM, SheetSize.LARGE], preferType: SheetType.BOTTOM,
         dragBar: true, showClose: false, backgroundColor: this.palette.sheetBackground,
@@ -281,7 +297,7 @@ struct Index {
       Button({ type: ButtonType.Normal }) {
         Row({ space: 6 }) {
           Text(this.weatherData.city).fontSize(16).fontWeight(FontWeight.Medium)
-            .fontColor(this.themeColors.textColor).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            .fontColor(this.palette.text).maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
           Image($r('app.media.chevron_right')).width(13).height(13)
             .fillColor(this.palette.accent).rotate({ angle: 90 }).accessibilityLevel('no')
         }.width('100%')
@@ -289,29 +305,29 @@ struct Index {
         .accessibilityText(`当前城市${this.weatherData.city}，切换城市`)
         .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/CitySelector' }))
       Text(`${this.displayTemperature(this.weatherData.current.temp)}°`).fontSize(24).fontWeight(300)
-        .fontColor(this.themeColors.textColor)
-      Text(this.weatherData.current.text).fontSize(12).fontColor(this.themeColors.textSecondary)
+        .fontColor(this.palette.text)
+      Text(this.weatherData.current.text).fontSize(12).fontColor(this.palette.secondary)
         .maxLines(1).constraintSize({ maxWidth: 84 })
     }.width('100%').padding({ left: 24, right: 24, top: 36, bottom: 4 })
-      .backgroundColor(this.themeColors.pageBackground)
+      .backgroundColor(this.palette.page)
       .border({ width: { bottom: .5 }, color: this.palette.border })
   }
 
   @Builder
   skeletonBuilder() {
-    WeatherSkeleton()
+    WeatherSkeleton({ palette: this.palette })
   }
 
   @Builder
   errorBuilder() {
     Column({ space: 14 }) {
-      Image($r('app.media.weather_cloudy')).width(60).height(60).fillColor('#AADCE9')
-      Text('天气暂时失联').fontSize(24).fontWeight(FontWeight.Medium).fontColor('#FFFFFF')
-      Text(this.uiState.message).fontSize(14).fontColor('#B9CAD6').textAlign(TextAlign.Center).lineHeight(22)
+      Image($r('app.media.weather_cloudy')).width(60).height(60).fillColor(this.palette.accent)
+      Text('天气暂时失联').fontSize(24).fontWeight(FontWeight.Medium).fontColor(this.palette.text)
+      Text(this.uiState.message).fontSize(14).fontColor(this.palette.secondary).textAlign(TextAlign.Center).lineHeight(22)
       Button('再试一次').height(48).padding({ left: 32, right: 32 })
-        .fontColor('#102D40').backgroundColor('#AADCE9').borderRadius(24)
+        .fontColor(this.palette.page).backgroundColor(this.palette.accent).borderRadius(24)
         .margin({ top: 12 }).onClick(() => this.loadData(true))
-      Button('切换城市').height(44).backgroundColor(Color.Transparent).fontColor('#D5E1E9')
+      Button('切换城市').height(44).backgroundColor(Color.Transparent).fontColor(this.palette.accent)
         .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/CitySelector' }))
     }
     .width('100%').height('100%').padding(32).justifyContent(FlexAlign.Center)
@@ -321,53 +337,60 @@ struct Index {
   contentBuilder() {
     Refresh({ refreshing: $$this.refreshing }) {
       Scroll(this.scroller) {
-        Stack({ alignContent: Alignment.Top }) {
-          DynamicWeatherBackground({
-            visualState: this.visualState, hour: this.currentHour,
-            isNight: this.isNight, nightPhoto: this.nightPhoto, cityImageAspect: this.cityImageAspect,
-            motionEnabled: this.motionEnabled, active: this.pageActive && this.sceneVisible && !this.detailOpen,
-            themeColors: this.themeColors, cityBackgroundResource: this.cityBackgroundResource,
-            hasBundledCityBackground: this.hasBundledCityBackground, cityBackgroundUrl: this.cityBackgroundUrl
-          }).height(this.sceneHeight)
-          Column() {
-            this.topBar()
-            HeroSection({
-              current: this.weatherData.current,
-              displayTemp: this.displayTemperature(this.weatherData.current.temp),
-              displayFeels: this.displayTemperature(this.weatherData.current.feelsLike),
-              displayHigh: this.displayTemperature(this.weatherData.current.high),
-              displayLow: this.displayTemperature(this.weatherData.current.low),
-              themeColors: this.themeColors
-            })
-            if (this.weatherData.alerts.length > 0) {
-              this.alertBanner()
-            }
-            Column().height(56).width('100%').accessibilityLevel('no')
+        Column() {
+          Stack({ alignContent: Alignment.Top }) {
+            DynamicWeatherBackground({
+              visualState: this.visualState, hour: this.currentHour,
+              isNight: this.isNight, nightPhoto: this.nightPhoto, cityImageAspect: this.cityImageAspect,
+              motionEnabled: this.motionEnabled, active: this.pageActive && this.sceneVisible && !this.detailOpen,
+              themeColors: this.themeColors, cityBackgroundResource: this.cityBackgroundResource,
+              hasBundledCityBackground: this.hasBundledCityBackground, cityBackgroundUrl: this.cityBackgroundUrl
+            }).height(this.sceneHeight)
             Column() {
-              HourlyCapsules({ hourly: this.weatherData.hourly, themeColors: this.themeColors, unit: this.unit,
-                currentNight: this.isNight })
-              WeeklyForecast({ daily: this.weatherData.daily, themeColors: this.themeColors, unit: this.unit })
-              AirQualityCard({ air: this.weatherData.air, current: this.weatherData.current,
-                unit: this.unit, themeColors: this.themeColors, palette: this.palette,
-                onInspect: () => this.openAirDetail() })
-              LifeIndexGrid({ lifeIndex: this.weatherData.lifeIndex, themeColors: this.themeColors,
-                data: this.weatherData, now: this.sceneTime, palette: this.palette,
-                onInspect: (item: LifeIndex) => this.openLifeDetail(item) })
-              Text('天气详情').fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.themeColors.textColor)
-                .alignSelf(ItemAlign.Start).margin({ top: 30, bottom: 18 })
-              DataGrid({ current: this.weatherData.current, themeColors: this.themeColors, unit: this.unit,
-                solar: WeatherInstruments.solar(this.weatherData, this.sceneTime), palette: this.palette })
-              Column({ space: 6 }) {
-                Text(this.updateText()).fontSize(11).fontColor(this.themeColors.textSecondary)
-                Button('关于与数据来源', { type: ButtonType.Normal }).height(44).fontSize(11)
-                  .fontColor(this.themeColors.textTertiary).backgroundColor(Color.Transparent)
-                  .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/About' }))
-              }.width('100%').margin({ top: 24, bottom: 16 })
-            }
-            .width('100%').padding({ left: 24, right: 24 })
-            .linearGradient({ angle: 180, colors: [[Color.Transparent, 0], [this.palette.wash, .35],
-              [this.palette.panelBottom, 1]] })
-          }.width('100%')
+              this.topBar()
+              HeroSection({
+                current: this.weatherData.current,
+                displayTemp: this.displayTemperature(this.weatherData.current.temp),
+                displayFeels: this.displayTemperature(this.weatherData.current.feelsLike),
+                displayHigh: this.displayTemperature(this.weatherData.current.high),
+                displayLow: this.displayTemperature(this.weatherData.current.low),
+                themeColors: this.themeColors
+              })
+              if (this.weatherData.alerts.length > 0) {
+                this.alertBanner()
+              }
+              Column().height(56).width('100%').accessibilityLevel('no')
+              Column() {
+                HourlyCapsules({ hourly: this.weatherData.hourly, themeColors: this.themeColors, unit: this.unit,
+                  currentNight: this.isNight })
+              }.width('100%').padding({ left: 24, right: 24 })
+            }.width('100%')
+          }.width('100%').backgroundColor(this.themeColors.pageBackground)
+          Column().width('100%').height(64)
+            .linearGradient({ direction: GradientDirection.Bottom,
+              colors: [[this.themeColors.pageBackground, 0], [this.palette.page, 1]] })
+            .hitTestBehavior(HitTestMode.None).accessibilityLevel('no')
+          Column() {
+            WeeklyForecast({ daily: this.weatherData.daily, themeColors: this.surfaceColors, unit: this.unit })
+            AirQualityCard({ air: this.weatherData.air, current: this.weatherData.current,
+              unit: this.unit, themeColors: this.surfaceColors, palette: this.palette,
+              onInspect: () => this.openAirDetail() })
+            LifeIndexGrid({ lifeIndex: this.weatherData.lifeIndex, themeColors: this.surfaceColors,
+              data: this.weatherData, now: this.sceneTime, palette: this.palette,
+              onInspect: (item: LifeIndex) => this.openLifeDetail(item) })
+            Text('天气详情').fontSize(20).fontWeight(FontWeight.Medium).fontColor(this.palette.text)
+              .alignSelf(ItemAlign.Start).margin({ top: 30, bottom: 18 })
+            DataGrid({ current: this.weatherData.current, themeColors: this.surfaceColors, unit: this.unit,
+              solar: WeatherInstruments.solar(this.weatherData, this.sceneTime), palette: this.palette })
+            Column({ space: 6 }) {
+              Text(this.updateText()).fontSize(11).fontColor(this.palette.secondary)
+              Button('关于与数据来源', { type: ButtonType.Normal }).height(44).fontSize(11)
+                .fontColor(this.palette.muted).backgroundColor(Color.Transparent)
+                .onClick(() => this.getUIContext().getRouter().pushUrl({ url: 'pages/About' }))
+            }.width('100%').margin({ top: 24, bottom: 16 })
+          }
+          .width('100%').padding({ left: 24, right: 24 })
+          .backgroundColor(this.palette.page)
         }.width('100%')
       }
       .scrollBar(BarState.Off).edgeEffect(EdgeEffect.Spring).width('100%').height('100%')
@@ -375,7 +398,11 @@ struct Index {
         // Stop expensive scene work once it has scrolled off screen.
         this.sceneVisible = this.scroller.currentOffset().yOffset < this.sceneHeight
         this.scrolled = this.scroller.currentOffset().yOffset > 16
-        this.compactHeader = this.scroller.currentOffset().yOffset > 280
+        const compact: boolean = this.scroller.currentOffset().yOffset > 280
+        if (compact !== this.compactHeader) {
+          this.compactHeader = compact
+          this.syncSystemBars()
+        }
       })
     }
     .width('100%').height('100%')

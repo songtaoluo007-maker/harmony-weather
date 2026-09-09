@@ -1,9 +1,12 @@
+import { AtmospherePalette } from '../theme/AtmosphereTokens'
+
 /** Structural first-load placeholder: no temperature or forecast is fabricated. */
 @Component
 export struct WeatherSkeleton {
+  @Prop palette: AtmospherePalette = new AtmospherePalette()
   @Builder
   bar(width: Length, height: number, radius: number = 8) {
-    Column().width(width).height(height).borderRadius(radius).backgroundColor('rgba(198,225,239,0.10)')
+    Column().width(width).height(height).borderRadius(radius).backgroundColor(this.palette.border)
   }
 
   build() {
@@ -16,8 +19,8 @@ export struct WeatherSkeleton {
           this.bar(36, 36, 18)
         }.width('100%').margin({ top: 42 })
         Row({ space: 9 }) {
-          LoadingProgress().width(16).height(16).color('#AADCE9')
-          Text('正在获取天气').fontSize(12).fontColor('#C4D7E4')
+          LoadingProgress().width(16).height(16).color(this.palette.accent)
+          Text('正在获取天气').fontSize(12).fontColor(this.palette.secondary)
         }.width('100%').accessibilityText('天气加载中，请稍候')
         Column({ space: 20 }) {
           this.bar('50%', 112, 18)
@@ -32,7 +35,7 @@ export struct WeatherSkeleton {
               this.bar(24, 24, 12)
               this.bar('65%', 18)
             }.layoutWeight(1).padding({ top: 14, bottom: 14 }).borderRadius(18)
-              .backgroundColor('rgba(198,225,239,0.045)')
+              .backgroundColor(this.palette.panelBottom)
           })
         }.width('100%')
         this.bar('100%', 170, 20)
@@ -41,6 +44,6 @@ export struct WeatherSkeleton {
           Column() { this.bar('100%', 112, 20) }.layoutWeight(1)
         }.width('100%')
       }.width('100%').alignItems(HorizontalAlign.Start).padding({ left: 24, right: 24, bottom: 30 })
-    }.width('100%').height('100%').scrollBar(BarState.Off).backgroundColor('#102333')
+    }.width('100%').height('100%').scrollBar(BarState.Off).backgroundColor(this.palette.page)
   }
 }

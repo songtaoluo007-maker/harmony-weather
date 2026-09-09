@@ -1,3 +1,4 @@
+import { SystemBarService } from '../services/SystemBarService'
 import { bundleManager, common } from '@kit.AbilityKit'
 import { CityInfo } from '../models/WeatherModels'
 import { WeatherService } from '../services/WeatherService'
@@ -8,6 +9,7 @@ import { DesignTokens as T } from '../theme/DesignTokens'
 @Entry
 @Component
 struct About {
+  onPageShow(): void { SystemBarService.apply(this.getUIContext().getHostContext() as common.UIAbilityContext) }
   @State version: string = ''
   @State provider: string = ''
   @State cities: CityInfo[] = []

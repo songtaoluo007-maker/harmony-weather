@@ -22,7 +22,7 @@ export struct DataGrid {
           Text(`${this.current.windDir} · ${this.current.windScale}`).fontSize(12)
             .fontColor(this.themeColors.textSecondary).maxLines(2)
         }.layoutWeight(1).alignItems(HorizontalAlign.Start)
-        InstrumentDial({ kind: 'wind', value: WeatherInstruments.bearing(this.current.windDir), tint: this.palette.accent })
+        InstrumentDial({ kind: 'wind', value: WeatherInstruments.bearing(this.current.windDir), tint: this.palette.accent, palette: this.palette })
           .width(114).height(114)
       }.width('100%').padding(20).borderRadius(A.radius)
         .linearGradient({ angle: 125, colors: [[this.palette.panelTop, 0], [this.palette.panelBottom, 1]] })
@@ -37,15 +37,15 @@ export struct DataGrid {
             .fontSize(10).fontColor(this.themeColors.textSecondary)
         }.width('100%')
         InstrumentDial({ kind: 'solar', value: this.solar.valid ? this.solar.progress : -1,
-          active: this.solar.sunVisible }).width('100%').height(66).margin({ top: 14 })
+          active: this.solar.sunVisible, palette: this.palette }).width('100%').height(66).margin({ top: 14 })
         Row() {
           Column({ space: 4 }) {
-            Text(this.solar.valid ? this.solar.rise : this.current.sunrise).fontSize(23).fontColor(A.ivory)
+            Text(this.solar.valid ? this.solar.rise : this.current.sunrise).fontSize(23).fontColor(this.palette.text)
             Text('日出').fontSize(10).fontColor(this.themeColors.textSecondary)
           }.alignItems(HorizontalAlign.Start)
           Blank()
           Column({ space: 4 }) {
-            Text(this.solar.valid ? this.solar.set : this.current.sunset).fontSize(23).fontColor(A.ivory)
+            Text(this.solar.valid ? this.solar.set : this.current.sunset).fontSize(23).fontColor(this.palette.text)
             Text('日落').fontSize(10).fontColor(this.themeColors.textSecondary)
           }.alignItems(HorizontalAlign.End)
         }.width('100%')
@@ -58,7 +58,7 @@ export struct DataGrid {
         Column({ space: 12 }) {
           this.label($r('app.media.water_percent'), '相对湿度', this.palette.accent)
           this.reading(`${this.current.humidity}`, '%', 32)
-          InstrumentDial({ kind: 'scale', value: WeatherInstruments.fraction(this.current.humidity), tint: this.palette.accent })
+          InstrumentDial({ kind: 'scale', value: WeatherInstruments.fraction(this.current.humidity), tint: this.palette.accent, palette: this.palette })
             .width('100%').height(17)
         }.alignItems(HorizontalAlign.Start).layoutWeight(1).padding(18).borderRadius(A.radius)
           .linearGradient({ angle: 140, colors: [[this.palette.panelTop, 0], [this.palette.panelBottom, 1]] })
@@ -98,7 +98,7 @@ export struct DataGrid {
   @Builder
   reading(value: string, unit: string, size: number) {
     Flex({ wrap: FlexWrap.Wrap, alignItems: ItemAlign.End }) {
-      Text(value).fontSize(size).fontWeight(300).fontColor(A.ivory)
+      Text(value).fontSize(size).fontWeight(300).fontColor(this.palette.text)
         .maxLines(1).minFontSize(20).maxFontSize(size).heightAdaptivePolicy(TextHeightAdaptivePolicy.MIN_FONT_SIZE_FIRST)
         .constraintSize({ maxWidth: '100%' }).margin({ right: 5 })
       Text(unit).fontSize(11).fontColor(this.themeColors.textSecondary).margin({ bottom: 5 })
@@ -110,7 +110,7 @@ export struct DataGrid {
     Column({ space: 7 }) {
       Image(icon).width(17).height(17).fillColor(this.palette.accent).opacity(.8)
       Text(label).fontSize(10).fontColor(this.themeColors.textSecondary)
-      Text(value).fontSize(21).fontWeight(300).fontColor(A.ivory)
+      Text(value).fontSize(21).fontWeight(300).fontColor(this.palette.text)
         .maxLines(1).minFontSize(15).maxFontSize(21).heightAdaptivePolicy(TextHeightAdaptivePolicy.MIN_FONT_SIZE_FIRST)
       Text(unit).fontSize(10).fontColor(this.themeColors.textTertiary)
     }.layoutWeight(1).padding({ left: 5, right: 5 }).accessibilityText(`${label}${value} ${unit}`)
